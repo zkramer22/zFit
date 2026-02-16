@@ -3,9 +3,8 @@ node_modules
 # pocketbase
 pocketbase_0
 
-# tailscale cert
+# tailscale certs
 certs
-serve-https.mjs
 
 # Output
 .output
