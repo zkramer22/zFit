@@ -1,0 +1,38 @@
+@import 'tailwindcss';
+
+@theme {
+	--color-primary: #1e40af;
+	--color-primary-light: #3b82f6;
+	--color-primary-dark: #1e3a8a;
+	--color-surface: #ffffff;
+	--color-surface-dim: #f8fafc;
+	--color-surface-hover: #f1f5f9;
+	--color-border: #e2e8f0;
+	--color-border-strong: #cbd5e1;
+	--color-text: #0f172a;
+	--color-text-muted: #64748b;
+	--color-text-on-primary: #ffffff;
+	--color-success: #16a34a;
+	--color-warning: #d97706;
+	--color-danger: #dc2626;
+	--color-warmup: #f59e0b;
+	--color-main: #3b82f6;
+	--color-core: #8b5cf6;
+	--color-cooldown: #06b6d4;
+	--spacing-touch: 48px;
+}
+
+html {
+	font-family: system-ui, -apple-system, sans-serif;
+	-webkit-tap-highlight-color: transparent;
+}
+
+body {
+	@apply bg-surface text-text;
+}
+
+/* Ensure touch targets meet 48px minimum */
+.touch-target {
+	min-height: var(--spacing-touch);
+	min-width: var(--spacing-touch);
+}
