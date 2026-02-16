@@ -15,7 +15,7 @@
 </svelte:head>
 
 <div class="p-4 max-w-lg mx-auto">
-	<h1 class="text-2xl font-bold mb-1">Start a Workout</h1>
+	<h1 class="text-2xl font-bold mb-1">Let's get to work.</h1>
 	<p class="text-text-muted text-sm mb-6">Choose a program day or go freeform.</p>
 
 	<div class="grid gap-3">
