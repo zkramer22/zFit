@@ -3,7 +3,11 @@
     "allow": [
       "WebSearch",
       "Bash(npx sv create:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }
