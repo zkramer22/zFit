@@ -1,8 +1,6 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
-
 	let { children } = $props();
 
 	const navItems = [
@@ -44,7 +42,6 @@
 		{#each navItems as item}
 			<a
 				href={item.href}
-				onclick={(e: MouseEvent) => { e.preventDefault(); goto(item.href); }}
 				class="flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
 					{isActive(item.href, $page.url.pathname) ? 'text-primary' : 'text-text-muted'}"
 			>
