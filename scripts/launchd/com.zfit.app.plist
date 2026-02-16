@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.zfit.app</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>build</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__HOME__/dev/zFit</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>ORIGIN</key>
+    <string>https://freshmacs-macbook-pro.tail4ac32b.ts.net:8443</string>
+    <key>NODE_ENV</key>
+    <string>production</string>
+  </dict>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/zfit-app.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/zfit-app.log</string>
+</dict>
+</plist>
