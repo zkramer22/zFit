@@ -1,5 +1,9 @@
 node_modules
 
+# tailscale creds
+creds
+serve-https.mjs
+
 # Output
 .output
 .vercel
