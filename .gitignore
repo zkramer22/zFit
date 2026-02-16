@@ -1,5 +1,12 @@
 node_modules
 
+# pocketbase
+pocketbase_0
+
+# tailscale cert
+certs
+serve-https.mjs
+
 # Output
 .output
 .vercel
