@@ -1,6 +1,6 @@
 import { getPb } from '$lib/pocketbase/client';
-import { error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { error, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
 import type { Exercise, SessionEntry, Session } from '$lib/pocketbase/types';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -51,4 +51,40 @@ export const load: PageServerLoad = async ({ params }) => {
 	}
 
 	return { exercise, recentHistory };
+};
+
+export const actions: Actions = {
+	addVideo: async ({ params, request }) => {
+		const formData = await request.formData();
+		const url = formData.get('url')?.toString()?.trim();
+
+		if (!url) return fail(400, { error: 'URL is required' });
+
+		// Validate it's a YouTube URL
+		const ytMatch = url.match(
+			/(?:youtu\.be\/|youtube\.com\/(?:.*[?&]v=|.*\/))([\w-]+)/
+		);
+		if (!ytMatch) return fail(400, { error: 'Please paste a valid YouTube URL' });
+
+		const pb = await getPb();
+		const exercise = await pb.collection('exercises').getOne<Exercise>(params.id);
+
+		const videos = exercise.video_urls || [];
+		videos.push({ url, title: '', thumbnail_url: '' });
+
+		await pb.collection('exercises').update(params.id, { video_urls: videos });
+	},
+
+	removeVideo: async ({ params, request }) => {
+		const formData = await request.formData();
+		const index = Number(formData.get('index'));
+
+		const pb = await getPb();
+		const exercise = await pb.collection('exercises').getOne<Exercise>(params.id);
+
+		const videos = exercise.video_urls || [];
+		videos.splice(index, 1);
+
+		await pb.collection('exercises').update(params.id, { video_urls: videos });
+	}
 };

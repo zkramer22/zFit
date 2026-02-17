@@ -8,6 +8,9 @@ export default defineConfig({
 		tailwindcss(),
 		sveltekit(),
 		SvelteKitPWA({
+			devOptions: {
+				enabled: true
+			},
 			strategies: 'generateSW',
 			registerType: 'autoUpdate',
 			manifest: {

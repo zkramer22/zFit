@@ -92,7 +92,12 @@
 			>
 				<div class="flex items-start justify-between gap-2">
 					<div class="flex-1 min-w-0">
-						<div class="font-medium">{exercise.name}</div>
+						<div class="font-medium">
+							{exercise.name}
+							{#if exercise.video_urls?.length}
+								<span class="ml-1.5 text-xs font-normal text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">{exercise.video_urls.length} video{exercise.video_urls.length > 1 ? 's' : ''}</span>
+							{/if}
+						</div>
 						<div class="flex flex-wrap gap-1 mt-1.5">
 							<span
 								class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {categoryColors[
