@@ -25,6 +25,7 @@
 html {
 	font-family: system-ui, -apple-system, sans-serif;
 	-webkit-tap-highlight-color: transparent;
+	touch-action: manipulation;
 }
 
 body {

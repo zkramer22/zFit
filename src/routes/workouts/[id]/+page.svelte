@@ -2,6 +2,7 @@
 	import { dragHandleZone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
+	import Drawer from '$lib/components/Drawer.svelte';
 
 	let { data } = $props();
 
@@ -53,6 +54,7 @@
 		addedIds = [];
 		deletedItems = [];
 		addingToSection = null;
+		editingTargetId = null;
 		editing = false;
 	}
 
@@ -88,6 +90,7 @@
 			addedIds = [];
 			deletedItems = [];
 			addingToSection = null;
+			editingTargetId = null;
 			editing = false;
 		}
 	}
@@ -173,6 +176,8 @@
 			});
 			const record = await res.json();
 			addedIds = [...addedIds, record.id];
+			// Auto-open target editor for the new exercise
+			openTargetEditor(record);
 
 			let section = sections.find(s => s.key === sectionKey);
 			if (section) {
@@ -207,10 +212,67 @@
 		return parts.join('') || '';
 	}
 
-	// Filter out exercises already in the workout for a given section's add dropdown
+	// Inline target editing
+	let editingTargetId = $state<string | null>(null);
+	let editSets = $state<number | null>(null);
+	let editReps = $state<number | null>(null);
+	let editWeight = $state('');
+
+	function openTargetEditor(item: any) {
+		editingTargetId = item.id;
+		editSets = item.target_sets || null;
+		editReps = item.target_reps ? Number(item.target_reps) || null : null;
+		editWeight = item.target_weight || '';
+	}
+
+	async function saveTarget() {
+		if (!editingTargetId) return;
+		saving = true;
+		try {
+			await fetch(`/workouts/${data.workout.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					id: editingTargetId,
+					target_sets: editSets || 0,
+					target_reps: editReps ? String(editReps) : '',
+					target_weight: editWeight
+				})
+			});
+			// Update local state
+			for (const section of sections) {
+				const item = section.items.find(i => i.id === editingTargetId);
+				if (item) {
+					item.target_sets = editSets || 0;
+					item.target_reps = editReps ? String(editReps) : '';
+					item.target_weight = editWeight;
+					break;
+				}
+			}
+			editingTargetId = null;
+		} catch (err) {
+			console.error('Failed to save target:', err);
+		} finally {
+			saving = false;
+		}
+	}
+
+	// Drawer search state
+	let drawerSearch = $state('');
+
+	// Filter out exercises already in the workout, then apply search
 	function availableExercises() {
 		const usedIds = new Set(sections.flatMap(s => s.items.map(i => i.exercise || i.expand?.exercise?.id)));
-		return data.allExercises.filter(e => !usedIds.has(e.id));
+		let list = data.allExercises.filter(e => !usedIds.has(e.id));
+		if (drawerSearch) {
+			const q = drawerSearch.toLowerCase();
+			list = list.filter(e =>
+				e.name.toLowerCase().includes(q) ||
+				e.category.toLowerCase().includes(q) ||
+				e.muscle_groups?.some(mg => mg.toLowerCase().includes(q))
+			);
+		}
+		return list;
 	}
 </script>
 
@@ -305,47 +367,105 @@
 										target={formatTarget(item)}
 										editing
 										ondelete={() => deleteExercise(section.key, item.id)}
+										oneditTarget={() => openTargetEditor(item)}
 									/>
+									{#if editingTargetId === item.id}
+										<div class="mt-1 p-3 rounded-xl border border-primary/30 bg-primary/5">
+											<div class="flex gap-3">
+												<!-- Sets stepper -->
+												<div class="flex-1">
+													<span class="block text-xs font-medium text-text-muted mb-1">Sets</span>
+													<div class="flex items-center gap-0 rounded-lg border border-border bg-surface overflow-hidden">
+														<button
+															type="button"
+															onclick={() => { if (editSets && editSets > 1) editSets--; }}
+															class="px-2.5 py-1.5 text-text-muted hover:bg-surface-hover transition-colors"
+															aria-label="Decrease sets"
+														>
+															<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M5 12h14" /></svg>
+														</button>
+														<span class="flex-1 text-center text-sm font-medium tabular-nums {editSets ? 'text-text' : 'text-text-muted'}">{editSets ?? '—'}</span>
+														<button
+															type="button"
+															onclick={() => editSets = (editSets || 0) + 1}
+															class="px-2.5 py-1.5 text-text-muted hover:bg-surface-hover transition-colors"
+															aria-label="Increase sets"
+														>
+															<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 5v14m7-7H5" /></svg>
+														</button>
+													</div>
+												</div>
+												<!-- Reps stepper -->
+												<div class="flex-1">
+													<span class="block text-xs font-medium text-text-muted mb-1">Reps</span>
+													<div class="flex items-center gap-0 rounded-lg border border-border bg-surface overflow-hidden">
+														<button
+															type="button"
+															onclick={() => { if (editReps && editReps > 1) editReps--; }}
+															class="px-2.5 py-1.5 text-text-muted hover:bg-surface-hover transition-colors"
+															aria-label="Decrease reps"
+														>
+															<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M5 12h14" /></svg>
+														</button>
+														<span class="flex-1 text-center text-sm font-medium tabular-nums {editReps ? 'text-text' : 'text-text-muted'}">{editReps ?? '—'}</span>
+														<button
+															type="button"
+															onclick={() => editReps = (editReps || 0) + 1}
+															class="px-2.5 py-1.5 text-text-muted hover:bg-surface-hover transition-colors"
+															aria-label="Increase reps"
+														>
+															<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 5v14m7-7H5" /></svg>
+														</button>
+													</div>
+												</div>
+												<!-- Weight text input -->
+												<div class="flex-1">
+													<label for="edit-weight-{item.id}" class="block text-xs font-medium text-text-muted mb-1">Weight</label>
+													<input
+														id="edit-weight-{item.id}"
+														type="text"
+														placeholder="135lb"
+														bind:value={editWeight}
+														class="w-full px-2 py-1.5 rounded-lg border border-border bg-surface text-sm text-center
+															focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+													/>
+												</div>
+											</div>
+											<div class="flex gap-2 mt-2">
+												<button
+													type="button"
+													onclick={() => editingTargetId = null}
+													class="flex-1 px-3 py-1.5 rounded-lg text-sm text-text-muted hover:bg-surface-hover transition-colors"
+												>
+													Cancel
+												</button>
+												<button
+													type="button"
+													onclick={saveTarget}
+													disabled={saving}
+													class="flex-1 px-3 py-1.5 rounded-lg text-sm font-medium text-text-on-primary bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50"
+												>
+													Save
+												</button>
+											</div>
+										</div>
+									{/if}
 								{/if}
 							</div>
 						{/each}
 					</div>
 
 					<!-- Add exercise button -->
-					{#if addingToSection === section.key}
-						<div class="mt-2">
-							<select
-								class="w-full p-2 rounded-lg border border-border bg-surface text-sm"
-								onchange={(e) => {
-									const val = e.currentTarget.value;
-									if (val) addExercise(section.key, val);
-								}}
-							>
-								<option value="">Select an exercise...</option>
-								{#each availableExercises() as ex}
-									<option value={ex.id}>{ex.name}</option>
-								{/each}
-							</select>
-							<button
-								type="button"
-								onclick={() => addingToSection = null}
-								class="mt-1 text-xs text-text-muted hover:text-text"
-							>
-								Cancel
-							</button>
-						</div>
-					{:else}
-						<button
-							type="button"
-							onclick={() => addingToSection = section.key}
-							class="mt-2 w-full p-2 rounded-lg border border-dashed border-border text-sm text-text-muted hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1"
-						>
-							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-							</svg>
-							Add Exercise
-						</button>
-					{/if}
+					<button
+						type="button"
+						onclick={() => { addingToSection = section.key; drawerSearch = ''; }}
+						class="mt-2 w-full p-2 rounded-lg border border-dashed border-border text-sm text-text-muted hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1"
+					>
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+						</svg>
+						Add Exercise
+					</button>
 				{:else}
 					<div class="space-y-2">
 						{#each section.items as item (item.id)}
@@ -359,4 +479,51 @@
 		{/each}
 	</div>
 </div>
+
+<!-- Add Exercise Drawer -->
+<Drawer open={addingToSection !== null} onclose={() => addingToSection = null}>
+	<h2 class="text-lg font-bold mb-3">Add Exercise</h2>
+
+	<!-- Search -->
+	<div class="relative mb-3">
+		<svg
+			class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted"
+			fill="none"
+			viewBox="0 0 24 24"
+			stroke="currentColor"
+			stroke-width="2"
+		>
+			<path
+				stroke-linecap="round"
+				stroke-linejoin="round"
+				d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+			/>
+		</svg>
+		<input
+			type="text"
+			bind:value={drawerSearch}
+			placeholder="Search exercises..."
+			class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm
+				placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+		/>
+	</div>
+
+	<!-- Exercise list -->
+	<div class="space-y-2">
+		{#each availableExercises() as exercise (exercise.id)}
+			<ExerciseListItem
+				{exercise}
+				onselect={() => {
+					if (addingToSection) addExercise(addingToSection, exercise.id);
+				}}
+			/>
+		{/each}
+
+		{#if availableExercises().length === 0}
+			<div class="text-center py-8 text-text-muted">
+				<p>No exercises found.</p>
+			</div>
+		{/if}
+	</div>
+</Drawer>
 

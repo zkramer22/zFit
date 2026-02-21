@@ -8,9 +8,11 @@
 		showVideos?: boolean;
 		editing?: boolean;
 		ondelete?: () => void;
+		onselect?: () => void;
+		oneditTarget?: () => void;
 	}
 
-	let { exercise, target = '', showVideos = false, editing = false, ondelete }: Props = $props();
+	let { exercise, target = '', showVideos = false, editing = false, ondelete, onselect, oneditTarget }: Props = $props();
 
 	const categoryColors: Record<string, string> = {
 		strength: 'bg-blue-100 text-blue-800',
@@ -40,8 +42,26 @@
 			</span>
 		{/each}
 	</div>
-	{#if target}
-		<span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 mt-1.5">
+	{#if editing && oneditTarget}
+		{#if target}
+			<button
+				type="button"
+				onclick={(e) => { e.stopPropagation(); oneditTarget?.(); }}
+				class="inline-block px-3 py-1 rounded-lg text-xs font-semibold bg-primary/15 text-primary mt-1.5 hover:bg-primary/25 transition-colors"
+			>
+				{target}
+			</button>
+		{:else}
+			<button
+				type="button"
+				onclick={(e) => { e.stopPropagation(); oneditTarget?.(); }}
+				class="inline-block px-3 py-1 rounded-lg text-xs font-medium text-primary/60 bg-primary/5 border border-dashed border-primary/20 mt-1.5 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-colors"
+			>
+				+ target
+			</button>
+		{/if}
+	{:else if target}
+		<span class="inline-block px-3 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 mt-1.5">
 			{target}
 		</span>
 	{/if}
@@ -76,6 +96,28 @@
 			{/if}
 		</div>
 	</div>
+{:else if onselect}
+	<button
+		type="button"
+		onclick={onselect}
+		class="block w-full text-left p-3 rounded-xl border border-border bg-surface hover:bg-surface-hover
+			transition-colors active:scale-[0.99]"
+	>
+		<div class="flex items-start justify-between gap-2">
+			<div class="flex-1 min-w-0">
+				{@render content()}
+			</div>
+			<svg
+				class="w-5 h-5 text-primary shrink-0 mt-1"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+				stroke-width="2"
+			>
+				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+			</svg>
+		</div>
+	</button>
 {:else}
 	<a
 		href="/exercises/{exercise.id}"

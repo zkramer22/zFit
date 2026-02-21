@@ -4,13 +4,23 @@ import type { RequestHandler } from './$types';
 
 export const PATCH: RequestHandler = async ({ request }) => {
 	const pb = await getPb();
-	const updates: { id: string; order: number }[] = await request.json();
+	const body = await request.json();
 
-	for (const { id, order } of updates) {
-		await pb.collection('workout_exercises').update(id, { order });
+	// Array = order updates, Object = target update
+	if (Array.isArray(body)) {
+		for (const { id, order } of body) {
+			await pb.collection('workout_exercises').update(id, { order });
+		}
+		return json({ saved: body.length });
 	}
 
-	return json({ saved: updates.length });
+	const { id, target_sets, target_reps, target_weight } = body;
+	await pb.collection('workout_exercises').update(id, {
+		target_sets,
+		target_reps,
+		target_weight
+	});
+	return json({ updated: id });
 };
 
 export const POST: RequestHandler = async ({ request, params }) => {
