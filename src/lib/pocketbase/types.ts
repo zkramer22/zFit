@@ -14,14 +14,13 @@ export interface VideoRef {
 	thumbnail_url: string;
 }
 
-export interface Program extends RecordModel {
+export interface Workout extends RecordModel {
 	name: string;
 	description: string;
-	order: number;
 }
 
-export interface ProgramExercise extends RecordModel {
-	program: string;
+export interface WorkoutExercise extends RecordModel {
+	workout: string;
 	exercise: string;
 	order: number;
 	section: 'warmup' | 'main' | 'core' | 'cooldown';
@@ -31,7 +30,20 @@ export interface ProgramExercise extends RecordModel {
 	notes: string;
 }
 
+export interface Program extends RecordModel {
+	name: string;
+	description: string;
+	active: boolean;
+}
+
+export interface ProgramWorkout extends RecordModel {
+	program: string;
+	workout: string;
+	day_number: number;
+}
+
 export interface Session extends RecordModel {
+	workout: string;
 	program: string;
 	date: string;
 	notes: string;
@@ -68,9 +80,15 @@ export interface Goal extends RecordModel {
 }
 
 // Expanded types for when relations are resolved
-export interface ProgramExerciseExpanded extends ProgramExercise {
+export interface WorkoutExerciseExpanded extends WorkoutExercise {
 	expand?: {
 		exercise?: Exercise;
+	};
+}
+
+export interface ProgramWorkoutExpanded extends ProgramWorkout {
+	expand?: {
+		workout?: Workout;
 	};
 }
 
@@ -82,6 +100,7 @@ export interface SessionEntryExpanded extends SessionEntry {
 
 export interface SessionExpanded extends Session {
 	expand?: {
+		workout?: Workout;
 		program?: Program;
 	};
 }

@@ -4,9 +4,9 @@
 	let { children } = $props();
 
 	const navItems = [
-		{ href: '/log', label: 'Log', icon: 'edit' },
 		{ href: '/exercises', label: 'Exercises', icon: 'list' },
-		{ href: '/more', label: 'More', icon: 'menu' }
+		{ href: '/workouts', label: 'Workouts', icon: 'dumbbell' },
+		{ href: '/programs', label: 'Programs', icon: 'layers' },
 	];
 
 	function isActive(href: string, pathname: string): boolean {
@@ -49,9 +49,17 @@
 					<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
 					</svg>
+				{:else if item.icon === 'dumbbell'}
+					<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5h-2a1 1 0 00-1 1v9a1 1 0 001 1h2m0-11v11m0-11h11m-11 11h11m0-11h2a1 1 0 011 1v9a1 1 0 01-1 1h-2m0-11v11M2 12h2.5m15 0H22" />
+					</svg>
 				{:else if item.icon === 'list'}
 					<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 						<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+					</svg>
+				{:else if item.icon === 'layers'}
+					<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
 					</svg>
 				{:else}
 					<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

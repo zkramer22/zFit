@@ -2,13 +2,13 @@
 	import Button from '$lib/components/ui/Button.svelte';
 
 	interface Props {
-		programName: string;
+		workoutName: string;
 		date: string;
 		sessionId: string;
 		saving: boolean;
 	}
 
-	let { programName, date, sessionId, saving }: Props = $props();
+	let { workoutName, date, sessionId, saving }: Props = $props();
 
 	let elapsed = $state(0);
 
@@ -32,7 +32,7 @@
 <div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
 	<div class="flex items-center justify-between max-w-lg mx-auto">
 		<div>
-			<h1 class="font-bold text-lg leading-tight">{programName || 'Freeform Session'}</h1>
+			<h1 class="font-bold text-lg leading-tight">{workoutName || 'Freeform Session'}</h1>
 			<div class="flex items-center gap-2 text-sm text-text-muted">
 				<span>{formatDate(date)}</span>
 				{#if saving}

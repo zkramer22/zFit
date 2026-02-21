@@ -13,7 +13,7 @@ export interface EntryState {
 	targetSets: number;
 	targetReps: string;
 	targetWeight: string;
-	programNotes: string;
+	workoutNotes: string;
 	lastSessionSets: SetData[];
 	dirty: boolean;
 }
@@ -21,7 +21,7 @@ export interface EntryState {
 function createSessionStore() {
 	let entries = $state<EntryState[]>([]);
 	let sessionId = $state<string>('');
-	let programName = $state<string>('');
+	let workoutName = $state<string>('');
 	let startTime = $state<number>(Date.now());
 	let saving = $state<boolean>(false);
 
@@ -51,7 +51,7 @@ function createSessionStore() {
 	return {
 		get entries() { return entries; },
 		get sessionId() { return sessionId; },
-		get programName() { return programName; },
+		get workoutName() { return workoutName; },
 		get startTime() { return startTime; },
 		get saving() { return saving; },
 		get entriesBySection() { return entriesBySection; },
@@ -66,7 +66,7 @@ function createSessionStore() {
 			entryData: EntryState[]
 		) {
 			sessionId = id;
-			programName = name;
+			workoutName = name;
 			entries = entryData;
 			startTime = Date.now();
 		},

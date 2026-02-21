@@ -57,8 +57,8 @@
 						<span class="bg-surface-dim px-2 py-0.5 rounded">Last: {lastRef()}</span>
 					{/if}
 				</div>
-				{#if entry.programNotes}
-					<p class="text-xs text-text-muted mt-1 italic">{entry.programNotes}</p>
+				{#if entry.workoutNotes}
+					<p class="text-xs text-text-muted mt-1 italic">{entry.workoutNotes}</p>
 				{/if}
 			</div>
 

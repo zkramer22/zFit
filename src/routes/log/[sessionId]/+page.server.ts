@@ -4,7 +4,7 @@ import type { PageServerLoad, Actions } from './$types';
 import type {
 	SessionExpanded,
 	SessionEntryExpanded,
-	ProgramExercise,
+	WorkoutExercise,
 	SessionEntry,
 	SetData
 } from '$lib/pocketbase/types';
@@ -12,11 +12,11 @@ import type {
 export const load: PageServerLoad = async ({ params }) => {
 	const pb = await getPb();
 
-	// Load session with program expansion
+	// Load session with workout expansion
 	let session: SessionExpanded;
 	try {
 		session = await pb.collection('sessions').getOne<SessionExpanded>(params.sessionId, {
-			expand: 'program'
+			expand: 'workout'
 		});
 	} catch {
 		error(404, 'Session not found');
@@ -29,24 +29,24 @@ export const load: PageServerLoad = async ({ params }) => {
 		expand: 'exercise'
 	});
 
-	// Load program exercise targets if this session has a program
-	let targets: Record<string, ProgramExercise> = {};
-	if (session.program) {
-		const programExercises = await pb.collection('program_exercises').getFullList<ProgramExercise>({
-			filter: `program="${session.program}"`,
+	// Load workout exercise targets if this session has a workout
+	let targets: Record<string, WorkoutExercise> = {};
+	if (session.workout) {
+		const workoutExercises = await pb.collection('workout_exercises').getFullList<WorkoutExercise>({
+			filter: `workout="${session.workout}"`,
 			sort: 'order'
 		});
-		for (const pe of programExercises) {
-			targets[pe.exercise] = pe;
+		for (const we of workoutExercises) {
+			targets[we.exercise] = we;
 		}
 	}
 
-	// Load last session data for the same program (for reference)
+	// Load last session data for the same workout (for reference)
 	let lastSessionEntries: Record<string, SetData[]> = {};
-	if (session.program) {
+	if (session.workout) {
 		try {
 			const lastSessions = await pb.collection('sessions').getList(1, 1, {
-				filter: `program="${session.program}" && id!="${session.id}"`,
+				filter: `workout="${session.workout}" && id!="${session.id}"`,
 				sort: '-date'
 			});
 			if (lastSessions.items.length > 0) {

@@ -60,7 +60,7 @@ const exercises: ExerciseDef[] = [
 		category: 'warmup'
 	},
 
-	// Day 1 — Lower Body Strength
+	// Lower Body Strength
 	{
 		name: 'Leg Press (Bilateral)',
 		description: 'Machine, bilateral. Moderate width foot placement, feet slightly high to reduce deep hip flexion. Depth only as deep as comfortable.',
@@ -92,7 +92,7 @@ const exercises: ExerciseDef[] = [
 		category: 'strength'
 	},
 
-	// Day 2 — Posterior Chain
+	// Posterior Chain
 	{
 		name: 'Back Extension Hold',
 		description: 'Back extension chair — isometric hold progression from LowBackAbility. Hold at top position for time, building toward 60 sec holds, then progress to reps.',
@@ -118,7 +118,7 @@ const exercises: ExerciseDef[] = [
 		category: 'posterior_chain'
 	},
 
-	// Day 3 — Stability & Unilateral
+	// Stability & Unilateral
 	{
 		name: 'Balance Board Squats',
 		description: 'RevBalance 101 v2 or BOSU ball. KB goblet hold. Progression: add weight only when balance feels automatic.',
@@ -177,36 +177,32 @@ const exercises: ExerciseDef[] = [
 	},
 ];
 
-// ── Program definitions ───────────────────────────────────────────────
+// ── Workout definitions (formerly "programs") ────────────────────────
 
-interface ProgramDef {
+interface WorkoutDef {
 	name: string;
 	description: string;
-	order: number;
 }
 
-const programs: ProgramDef[] = [
+const workouts: WorkoutDef[] = [
 	{
-		name: 'Day 1 — Lower Body Strength + Core',
+		name: 'Lower Body Strength + Core',
 		description: 'Bilateral machine work, controlled loading. Build load tolerance through stable, machine-guided movements.',
-		order: 1
 	},
 	{
-		name: 'Day 2 — Posterior Chain + Back',
+		name: 'Posterior Chain + Back',
 		description: 'Hip hinge patterning, back extension progression, core. Develop posterior chain — where skiing power comes from.',
-		order: 2
 	},
 	{
-		name: 'Day 3 — Stability & Unilateral + Core',
+		name: 'Stability & Unilateral + Core',
 		description: 'Balance, single-leg strength, anti-rotation core. Most sport-specific day for skiing, volleyball, skating.',
-		order: 3
 	}
 ];
 
-// ── Program exercise mappings ─────────────────────────────────────────
+// ── Workout exercise mappings ─────────────────────────────────────────
 
-interface ProgramExerciseDef {
-	programOrder: number; // references program.order
+interface WorkoutExerciseDef {
+	workoutIndex: number; // index into workouts array (0, 1, 2)
 	exerciseName: string;
 	section: string;
 	order: number;
@@ -216,8 +212,8 @@ interface ProgramExerciseDef {
 	notes: string;
 }
 
-// Warmup block shared by all 3 days
-const warmupBlock: Omit<ProgramExerciseDef, 'programOrder'>[] = [
+// Warmup block shared by all 3 workouts
+const warmupBlock: Omit<WorkoutExerciseDef, 'workoutIndex'>[] = [
 	{ exerciseName: 'Banded Clamshells', section: 'warmup', order: 1, target_sets: 1, target_reps: '15 each side', target_weight: 'band', notes: '' },
 	{ exerciseName: 'Banded Fire Hydrants', section: 'warmup', order: 2, target_sets: 1, target_reps: '15 each side', target_weight: 'band', notes: '' },
 	{ exerciseName: 'Banded Monster Walks', section: 'warmup', order: 3, target_sets: 1, target_reps: '20 each direction', target_weight: 'band', notes: '' },
@@ -225,43 +221,50 @@ const warmupBlock: Omit<ProgramExerciseDef, 'programOrder'>[] = [
 	{ exerciseName: 'Single-Leg Balance Hold', section: 'warmup', order: 5, target_sets: 1, target_reps: '30 sec each side', target_weight: 'bw', notes: '' },
 ];
 
-const programExercises: ProgramExerciseDef[] = [
-	// Day 1 — warmup
-	...warmupBlock.map(e => ({ ...e, programOrder: 1 })),
-	// Day 1 — main
-	{ programOrder: 1, exerciseName: 'Leg Press (Bilateral)', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_weight: '125 lb', notes: 'Feet slightly high on platform. Depth above 90° at hip.' },
-	{ programOrder: 1, exerciseName: 'Leg Press (Single Leg)', section: 'main', order: 7, target_sets: 2, target_reps: '10-12 each', target_weight: '75 lb', notes: 'Right leg may need less weight' },
-	{ programOrder: 1, exerciseName: 'Leg Curl Machine', section: 'main', order: 8, target_sets: 3, target_reps: '12-15', target_weight: '', notes: 'Start light. Critical for hip stability and ski readiness.' },
-	{ programOrder: 1, exerciseName: 'Hip Abduction Machine', section: 'main', order: 9, target_sets: 3, target_reps: '15', target_weight: '', notes: 'Controlled on return. Don\'t let it slam shut.' },
-	{ programOrder: 1, exerciseName: 'Goblet Squat', section: 'main', order: 10, target_sets: 2, target_reps: '12-15', target_weight: '20 lb KB', notes: 'Partial ROM. Heels elevated on plate if needed. Deepen ROM before adding weight.' },
-	// Day 1 — core
-	{ programOrder: 1, exerciseName: 'Dead Bugs', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Keep low back pressed into floor' },
-	{ programOrder: 1, exerciseName: 'Pallof Press', section: 'core', order: 12, target_sets: 3, target_reps: '10 each side', target_weight: '', notes: 'Anti-rotation. Light resistance.' },
+const workoutExercises: WorkoutExerciseDef[] = [
+	// Workout 0 (Lower Body Strength + Core) — warmup
+	...warmupBlock.map(e => ({ ...e, workoutIndex: 0 })),
+	// Workout 0 — main
+	{ workoutIndex: 0, exerciseName: 'Leg Press (Bilateral)', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_weight: '125 lb', notes: 'Feet slightly high on platform. Depth above 90° at hip.' },
+	{ workoutIndex: 0, exerciseName: 'Leg Press (Single Leg)', section: 'main', order: 7, target_sets: 2, target_reps: '10-12 each', target_weight: '75 lb', notes: 'Right leg may need less weight' },
+	{ workoutIndex: 0, exerciseName: 'Leg Curl Machine', section: 'main', order: 8, target_sets: 3, target_reps: '12-15', target_weight: '', notes: 'Start light. Critical for hip stability and ski readiness.' },
+	{ workoutIndex: 0, exerciseName: 'Hip Abduction Machine', section: 'main', order: 9, target_sets: 3, target_reps: '15', target_weight: '', notes: 'Controlled on return. Don\'t let it slam shut.' },
+	{ workoutIndex: 0, exerciseName: 'Goblet Squat', section: 'main', order: 10, target_sets: 2, target_reps: '12-15', target_weight: '20 lb KB', notes: 'Partial ROM. Heels elevated on plate if needed. Deepen ROM before adding weight.' },
+	// Workout 0 — core
+	{ workoutIndex: 0, exerciseName: 'Dead Bugs', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Keep low back pressed into floor' },
+	{ workoutIndex: 0, exerciseName: 'Pallof Press', section: 'core', order: 12, target_sets: 3, target_reps: '10 each side', target_weight: '', notes: 'Anti-rotation. Light resistance.' },
 
-	// Day 2 — warmup
-	...warmupBlock.map(e => ({ ...e, programOrder: 2 })),
-	// Day 2 — main
-	{ programOrder: 2, exerciseName: 'Back Extension Hold', section: 'main', order: 6, target_sets: 3, target_reps: '30-45 sec hold', target_weight: 'bw', notes: 'Iso hold progression. Log hold times every session.' },
-	{ programOrder: 2, exerciseName: 'Kettlebell Romanian Deadlift', section: 'main', order: 7, target_sets: 3, target_reps: '10-12', target_weight: '20 lb KB', notes: 'Deepen hinge before adding weight' },
-	{ programOrder: 2, exerciseName: 'Glute Bridge', section: 'main', order: 8, target_sets: 3, target_reps: '15', target_weight: 'bw', notes: 'Squeeze hard at top, hold 2 sec. Progress: BW bilateral → BW single leg → weighted.' },
-	{ programOrder: 2, exerciseName: 'Leg Curl Machine', section: 'main', order: 9, target_sets: 3, target_reps: '12-15', target_weight: '', notes: 'Same as Day 1 — hammering hamstrings 2x/week' },
-	{ programOrder: 2, exerciseName: "Farmer's Carry", section: 'main', order: 10, target_sets: 3, target_reps: '30-40 sec', target_weight: '', notes: 'Moderate weight. Deliberate, even steps.' },
-	// Day 2 — core
-	{ programOrder: 2, exerciseName: 'Bird-Dog', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Hold top position 3 sec' },
-	{ programOrder: 2, exerciseName: 'Side Plank', section: 'core', order: 12, target_sets: 3, target_reps: '20-30 sec each side', target_weight: 'bw', notes: 'Modified from knees if needed' },
+	// Workout 1 (Posterior Chain + Back) — warmup
+	...warmupBlock.map(e => ({ ...e, workoutIndex: 1 })),
+	// Workout 1 — main
+	{ workoutIndex: 1, exerciseName: 'Back Extension Hold', section: 'main', order: 6, target_sets: 3, target_reps: '30-45 sec hold', target_weight: 'bw', notes: 'Iso hold progression. Log hold times every session.' },
+	{ workoutIndex: 1, exerciseName: 'Kettlebell Romanian Deadlift', section: 'main', order: 7, target_sets: 3, target_reps: '10-12', target_weight: '20 lb KB', notes: 'Deepen hinge before adding weight' },
+	{ workoutIndex: 1, exerciseName: 'Glute Bridge', section: 'main', order: 8, target_sets: 3, target_reps: '15', target_weight: 'bw', notes: 'Squeeze hard at top, hold 2 sec. Progress: BW bilateral → BW single leg → weighted.' },
+	{ workoutIndex: 1, exerciseName: 'Leg Curl Machine', section: 'main', order: 9, target_sets: 3, target_reps: '12-15', target_weight: '', notes: 'Same as Day 1 — hammering hamstrings 2x/week' },
+	{ workoutIndex: 1, exerciseName: "Farmer's Carry", section: 'main', order: 10, target_sets: 3, target_reps: '30-40 sec', target_weight: '', notes: 'Moderate weight. Deliberate, even steps.' },
+	// Workout 1 — core
+	{ workoutIndex: 1, exerciseName: 'Bird-Dog', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Hold top position 3 sec' },
+	{ workoutIndex: 1, exerciseName: 'Side Plank', section: 'core', order: 12, target_sets: 3, target_reps: '20-30 sec each side', target_weight: 'bw', notes: 'Modified from knees if needed' },
 
-	// Day 3 — warmup
-	...warmupBlock.map(e => ({ ...e, programOrder: 3 })),
-	// Day 3 — main
-	{ programOrder: 3, exerciseName: 'Balance Board Squats', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_weight: '20 lb KB', notes: 'RevBalance or BOSU. Add weight only when balance is automatic.' },
-	{ programOrder: 3, exerciseName: 'Step-Ups', section: 'main', order: 7, target_sets: 3, target_reps: '10 each leg', target_weight: 'bw', notes: 'Low box 6-8 inches. Drive through heel, don\'t push off back foot.' },
-	{ programOrder: 3, exerciseName: 'Cable Hip Abduction', section: 'main', order: 8, target_sets: 2, target_reps: '12-15 each leg', target_weight: '', notes: 'Stand tall, don\'t lean away' },
-	{ programOrder: 3, exerciseName: 'Cable Hip Extension', section: 'main', order: 9, target_sets: 2, target_reps: '12-15 each leg', target_weight: '', notes: 'No adduction past midline' },
-	{ programOrder: 3, exerciseName: 'Single-Leg Calf Raise', section: 'main', order: 10, target_sets: 3, target_reps: '15 each leg', target_weight: 'bw', notes: 'Full range on a step' },
-	// Day 3 — core
-	{ programOrder: 3, exerciseName: 'Pallof Press', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: '', notes: 'With lateral step away from anchor' },
-	{ programOrder: 3, exerciseName: 'Dead Bugs', section: 'core', order: 12, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Slow tempo: 3 sec extend, 3 sec return' },
+	// Workout 2 (Stability & Unilateral + Core) — warmup
+	...warmupBlock.map(e => ({ ...e, workoutIndex: 2 })),
+	// Workout 2 — main
+	{ workoutIndex: 2, exerciseName: 'Balance Board Squats', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_weight: '20 lb KB', notes: 'RevBalance or BOSU. Add weight only when balance is automatic.' },
+	{ workoutIndex: 2, exerciseName: 'Step-Ups', section: 'main', order: 7, target_sets: 3, target_reps: '10 each leg', target_weight: 'bw', notes: 'Low box 6-8 inches. Drive through heel, don\'t push off back foot.' },
+	{ workoutIndex: 2, exerciseName: 'Cable Hip Abduction', section: 'main', order: 8, target_sets: 2, target_reps: '12-15 each leg', target_weight: '', notes: 'Stand tall, don\'t lean away' },
+	{ workoutIndex: 2, exerciseName: 'Cable Hip Extension', section: 'main', order: 9, target_sets: 2, target_reps: '12-15 each leg', target_weight: '', notes: 'No adduction past midline' },
+	{ workoutIndex: 2, exerciseName: 'Single-Leg Calf Raise', section: 'main', order: 10, target_sets: 3, target_reps: '15 each leg', target_weight: 'bw', notes: 'Full range on a step' },
+	// Workout 2 — core
+	{ workoutIndex: 2, exerciseName: 'Pallof Press', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: '', notes: 'With lateral step away from anchor' },
+	{ workoutIndex: 2, exerciseName: 'Dead Bugs', section: 'core', order: 12, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Slow tempo: 3 sec extend, 3 sec return' },
 ];
+
+// ── Program definition ────────────────────────────────────────────────
+
+const programDef = {
+	name: '3-Day Recovery Split',
+	description: 'Three-day rotation targeting lower body strength, posterior chain, and stability.',
+};
 
 // ── Seed logic ────────────────────────────────────────────────────────
 
@@ -301,58 +304,92 @@ async function seed() {
 		}
 	}
 
-	// Seed programs
-	console.log('\n── Seeding programs ──');
-	const programMap = new Map<number, string>(); // order → id
+	// Seed workouts
+	console.log('\n── Seeding workouts ──');
+	const workoutIds: string[] = [];
 
-	for (const prog of programs) {
-		const existing = await findByName('programs', prog.name);
+	for (const w of workouts) {
+		const existing = await findByName('workouts', w.name);
 		if (existing) {
-			console.log(`  ✓ ${prog.name} (exists)`);
-			programMap.set(prog.order, existing.id);
+			console.log(`  ✓ ${w.name} (exists)`);
+			workoutIds.push(existing.id);
 		} else {
-			const created = await pb.collection('programs').create({
-				name: prog.name,
-				description: prog.description,
-				order: prog.order
+			const created = await pb.collection('workouts').create({
+				name: w.name,
+				description: w.description,
 			});
-			console.log(`  + ${prog.name}`);
-			programMap.set(prog.order, created.id);
+			console.log(`  + ${w.name}`);
+			workoutIds.push(created.id);
 		}
 	}
 
-	// Seed program_exercises
-	console.log('\n── Seeding program_exercises ──');
-	// Get existing program_exercises to check for duplicates
-	const existingPE = await pb.collection('program_exercises').getFullList();
-	const existingPEKeys = new Set(existingPE.map(pe => `${pe.program}:${pe.exercise}:${pe.order}`));
+	// Seed workout_exercises
+	console.log('\n── Seeding workout_exercises ──');
+	const existingWE = await pb.collection('workout_exercises').getFullList();
+	const existingWEKeys = new Set(existingWE.map(we => `${we.workout}:${we.exercise}:${we.order}`));
 
-	for (const pe of programExercises) {
-		const programId = programMap.get(pe.programOrder);
-		const exerciseId = exerciseMap.get(pe.exerciseName);
+	for (const we of workoutExercises) {
+		const workoutId = workoutIds[we.workoutIndex];
+		const exerciseId = exerciseMap.get(we.exerciseName);
 
-		if (!programId || !exerciseId) {
-			console.error(`  ✗ Missing mapping: program=${pe.programOrder}, exercise=${pe.exerciseName}`);
+		if (!workoutId || !exerciseId) {
+			console.error(`  ✗ Missing mapping: workout=${we.workoutIndex}, exercise=${we.exerciseName}`);
 			continue;
 		}
 
-		const key = `${programId}:${exerciseId}:${pe.order}`;
-		if (existingPEKeys.has(key)) {
-			console.log(`  ✓ Day ${pe.programOrder} #${pe.order} ${pe.exerciseName} (exists)`);
+		const key = `${workoutId}:${exerciseId}:${we.order}`;
+		if (existingWEKeys.has(key)) {
+			console.log(`  ✓ ${workouts[we.workoutIndex].name} #${we.order} ${we.exerciseName} (exists)`);
 			continue;
 		}
 
-		await pb.collection('program_exercises').create({
-			program: programId,
+		await pb.collection('workout_exercises').create({
+			workout: workoutId,
 			exercise: exerciseId,
-			order: pe.order,
-			section: pe.section,
-			target_sets: pe.target_sets,
-			target_reps: pe.target_reps,
-			target_weight: pe.target_weight,
-			notes: pe.notes
+			order: we.order,
+			section: we.section,
+			target_sets: we.target_sets,
+			target_reps: we.target_reps,
+			target_weight: we.target_weight,
+			notes: we.notes
 		});
-		console.log(`  + Day ${pe.programOrder} #${pe.order} ${pe.exerciseName}`);
+		console.log(`  + ${workouts[we.workoutIndex].name} #${we.order} ${we.exerciseName}`);
+	}
+
+	// Seed program
+	console.log('\n── Seeding program ──');
+	let programId: string;
+	const existingProgram = await findByName('programs', programDef.name);
+	if (existingProgram) {
+		console.log(`  ✓ ${programDef.name} (exists)`);
+		programId = existingProgram.id;
+	} else {
+		const created = await pb.collection('programs').create({
+			name: programDef.name,
+			description: programDef.description,
+			active: true
+		});
+		console.log(`  + ${programDef.name}`);
+		programId = created.id;
+	}
+
+	// Seed program_workouts
+	console.log('\n── Seeding program_workouts ──');
+	const existingPW = await pb.collection('program_workouts').getFullList();
+	const existingPWKeys = new Set(existingPW.map(pw => `${pw.program}:${pw.workout}`));
+
+	for (let i = 0; i < workoutIds.length; i++) {
+		const key = `${programId}:${workoutIds[i]}`;
+		if (existingPWKeys.has(key)) {
+			console.log(`  ✓ Day ${i + 1} → ${workouts[i].name} (exists)`);
+			continue;
+		}
+		await pb.collection('program_workouts').create({
+			program: programId,
+			workout: workoutIds[i],
+			day_number: i + 1
+		});
+		console.log(`  + Day ${i + 1} → ${workouts[i].name}`);
 	}
 
 	console.log('\nSeed complete!');

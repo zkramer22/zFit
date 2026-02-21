@@ -36,13 +36,13 @@
 				targetSets: target?.target_sets || 0,
 				targetReps: target?.target_reps || '',
 				targetWeight: target?.target_weight || '',
-				programNotes: target?.notes || '',
+				workoutNotes: target?.notes || '',
 				lastSessionSets: lastSets,
 				dirty: false
 			};
 		});
 
-		sessionStore.init(data.session.id, data.session.expand?.program?.name || '', entryData);
+		sessionStore.init(data.session.id, data.session.expand?.workout?.name || '', entryData);
 	});
 
 	// Auto-save with 1s debounce
@@ -92,7 +92,7 @@
 </svelte:head>
 
 <SessionHeader
-	programName={sessionStore.programName}
+	workoutName={sessionStore.workoutName}
 	date={data.session.date}
 	sessionId={data.session.id}
 	saving={sessionStore.saving}
