@@ -8,7 +8,13 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "WebFetch(domain:github.com)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "WebFetch(domain:pocketbase.io)",
+      "Bash(npx tsx scripts/migrate-to-workouts.ts)",
+      "Bash(npx svelte-kit sync 2>&1)",
+      "Bash(npx svelte-check --threshold error 2>&1 | tail -3)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npx svelte-kit sync 2>&1 && npx svelte-check --threshold error 2>&1 | tail -5)"
     ]
   }
 }
