@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import SessionHeader from '$lib/components/log/SessionHeader.svelte';
-	import ExerciseCard from '$lib/components/log/ExerciseCard.svelte';
+	import SessionHeader from '$lib/components/SessionHeader.svelte';
+
 	import { sessionStore, type EntryState } from '$lib/stores/session.svelte';
 	import type { PageData } from './$types';
 
@@ -106,7 +106,10 @@
 			</h2>
 			<div class="space-y-3">
 				{#each section.entries as entry (entry.id)}
-					<ExerciseCard {entry} />
+					<!-- TODO: rebuild exercise logging card -->
+					<div class="p-3 rounded-xl border border-border bg-surface">
+						<div class="font-medium">{entry.exerciseName}</div>
+					</div>
 				{/each}
 			</div>
 		</div>

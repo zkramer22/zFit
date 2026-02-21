@@ -1,5 +1,11 @@
 <script lang="ts">
+	import { dragHandleZone } from 'svelte-dnd-action';
+	import { flip } from 'svelte/animate';
+	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
+
 	let { data } = $props();
+
+	const flipDurationMs = 200;
 
 	const sectionLabels: Record<string, string> = {
 		warmup: 'Warm-Up',
@@ -8,33 +14,203 @@
 		cooldown: 'Cooldown'
 	};
 
-	const sectionColors: Record<string, string> = {
-		warmup: 'border-l-warmup',
-		main: 'border-l-main',
-		core: 'border-l-core',
-		cooldown: 'border-l-cooldown'
-	};
-
 	const sectionOrder = ['warmup', 'main', 'core', 'cooldown'];
 
-	const grouped = $derived(() => {
-		const sections: Record<string, typeof data.exercises> = {};
+	let editing = $state(false);
+	let saving = $state(false);
+
+	// Snapshot for undo — captured when entering edit mode
+	let snapshot: typeof sections | null = $state(null);
+	// Track changes during edit session for undo
+	let addedIds: string[] = $state([]);
+	let deletedItems: { sectionKey: string; item: any }[] = $state([]);
+
+	// Build mutable section groups for dnd
+	let sections = $state(buildSections());
+
+	function buildSections() {
+		const groups: Record<string, any[]> = {};
 		for (const we of data.exercises) {
 			const s = we.section || 'main';
-			if (!sections[s]) sections[s] = [];
-			sections[s].push(we);
+			if (!groups[s]) groups[s] = [];
+			groups[s].push({ ...we });
 		}
 		return sectionOrder
-			.filter(s => sections[s]?.length)
-			.map(s => ({ key: s, label: sectionLabels[s] || s, exercises: sections[s] }));
-	});
+			.filter(s => groups[s]?.length)
+			.map(s => ({ key: s, label: sectionLabels[s] || s, items: groups[s] }));
+	}
 
-	function formatTarget(we: typeof data.exercises[0]): string {
+	function enterEditMode() {
+		// Deep-clone sections for undo snapshot
+		snapshot = sections.map(s => ({ ...s, items: s.items.map(i => ({ ...i })) }));
+		addedIds = [];
+		deletedItems = [];
+		editing = true;
+	}
+
+	function exitEditMode() {
+		snapshot = null;
+		addedIds = [];
+		deletedItems = [];
+		addingToSection = null;
+		editing = false;
+	}
+
+	async function undoEdits() {
+		if (!snapshot) return;
+		saving = true;
+		try {
+			// Delete any exercises that were added during this edit session
+			for (const id of addedIds) {
+				await fetch(`/workouts/${data.workout.id}`, {
+					method: 'DELETE',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ workoutExerciseId: id })
+				});
+			}
+			// Re-create any exercises that were deleted during this edit session
+			for (const { sectionKey, item } of deletedItems) {
+				await fetch(`/workouts/${data.workout.id}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ exercise: item.exercise || item.expand?.exercise?.id, section: sectionKey })
+				});
+			}
+			// Restore sections from snapshot
+			sections = snapshot.map(s => ({ ...s, items: s.items.map(i => ({ ...i })) }));
+			// Re-persist the original order to the server
+			await persistOrder();
+		} catch (err) {
+			console.error('Failed to undo:', err);
+		} finally {
+			saving = false;
+			snapshot = null;
+			addedIds = [];
+			deletedItems = [];
+			addingToSection = null;
+			editing = false;
+		}
+	}
+
+	function handleConsider(sectionKey: string, e: CustomEvent<{ items: any[] }>) {
+		const section = sections.find(s => s.key === sectionKey);
+		if (section) section.items = e.detail.items;
+	}
+
+	function handleFinalize(sectionKey: string, e: CustomEvent<{ items: any[] }>) {
+		const section = sections.find(s => s.key === sectionKey);
+		if (section) {
+			section.items = e.detail.items;
+			persistOrder();
+		}
+	}
+
+	async function persistOrder() {
+		saving = true;
+		try {
+			const updates: { id: string; order: number }[] = [];
+			let orderCounter = 1;
+			for (const section of sections) {
+				for (const item of section.items) {
+					updates.push({ id: item.id, order: orderCounter });
+					orderCounter++;
+				}
+			}
+
+			await fetch(`/workouts/${data.workout.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(updates)
+			});
+		} catch (err) {
+			console.error('Failed to save order:', err);
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function deleteExercise(sectionKey: string, itemId: string) {
+		// Track for undo (capture before deleting from state)
+		const section = sections.find(s => s.key === sectionKey);
+		const item = section?.items.find(i => i.id === itemId);
+		if (item) deletedItems = [...deletedItems, { sectionKey, item: { ...item } }];
+
+		saving = true;
+		try {
+			await fetch(`/workouts/${data.workout.id}`, {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ workoutExerciseId: itemId })
+			});
+
+			const section = sections.find(s => s.key === sectionKey);
+			if (section) {
+				section.items = section.items.filter(i => i.id !== itemId);
+				// Remove empty sections
+				if (section.items.length === 0) {
+					sections = sections.filter(s => s.key !== sectionKey);
+				}
+			}
+			persistOrder();
+		} catch (err) {
+			console.error('Failed to delete exercise:', err);
+		} finally {
+			saving = false;
+		}
+	}
+
+	// Add exercise state per section
+	let addingToSection = $state<string | null>(null);
+
+	async function addExercise(sectionKey: string, exerciseId: string) {
+		saving = true;
+		addingToSection = null;
+		try {
+			const res = await fetch(`/workouts/${data.workout.id}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ exercise: exerciseId, section: sectionKey })
+			});
+			const record = await res.json();
+			addedIds = [...addedIds, record.id];
+
+			let section = sections.find(s => s.key === sectionKey);
+			if (section) {
+				section.items = [...section.items, record];
+			} else {
+				// Section didn't exist yet, create it
+				const insertIdx = sectionOrder.indexOf(sectionKey);
+				const newSection = { key: sectionKey, label: sectionLabels[sectionKey] || sectionKey, items: [record] };
+				// Find proper position
+				let placed = false;
+				for (let i = 0; i < sections.length; i++) {
+					if (sectionOrder.indexOf(sections[i].key) > insertIdx) {
+						sections = [...sections.slice(0, i), newSection, ...sections.slice(i)];
+						placed = true;
+						break;
+					}
+				}
+				if (!placed) sections = [...sections, newSection];
+			}
+		} catch (err) {
+			console.error('Failed to add exercise:', err);
+		} finally {
+			saving = false;
+		}
+	}
+
+	function formatTarget(we: any): string {
 		const parts = [];
 		if (we.target_sets) parts.push(`${we.target_sets}x`);
 		if (we.target_reps) parts.push(we.target_reps);
 		if (we.target_weight && we.target_weight !== 'bw') parts.push(`@ ${we.target_weight}`);
 		return parts.join('') || '';
+	}
+
+	// Filter out exercises already in the workout for a given section's add dropdown
+	function availableExercises() {
+		const usedIds = new Set(sections.flatMap(s => s.items.map(i => i.exercise || i.expand?.exercise?.id)));
+		return data.allExercises.filter(e => !usedIds.has(e.id));
 	}
 </script>
 
@@ -42,58 +218,145 @@
 	<title>{data.workout.name} — zFit</title>
 </svelte:head>
 
-<div class="p-4 max-w-lg mx-auto">
-	<a
-		href="/workouts"
-		class="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text mb-4"
-	>
-		<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-			<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-		</svg>
-		Workouts
-	</a>
+<!-- Sticky header -->
+<div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
+	<div class="flex items-center justify-between max-w-lg mx-auto">
+		<div class="flex items-center gap-3 min-w-0">
+			<a
+				href="/workouts"
+				class="text-text-muted hover:text-text shrink-0"
+			>
+				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+				</svg>
+			</a>
+			<h1 class="font-bold text-lg leading-tight truncate">{data.workout.name}</h1>
+			{#if saving}
+				<span class="text-xs text-primary animate-pulse shrink-0">Saving...</span>
+			{/if}
+		</div>
+		{#if editing}
+			<div class="flex items-center gap-1">
+				<!-- Undo button -->
+				<button
+					type="button"
+					disabled={saving}
+					onclick={undoEdits}
+					class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors disabled:opacity-50"
+					aria-label="Undo all changes"
+				>
+					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+					</svg>
+				</button>
+				<!-- Done (checkmark) button -->
+				<button
+					type="button"
+					disabled={saving}
+					onclick={exitEditMode}
+					class="p-2 rounded-lg text-primary bg-primary/10 transition-colors disabled:opacity-50"
+					aria-label="Done editing"
+				>
+					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+					</svg>
+				</button>
+			</div>
+		{:else}
+			<!-- Pencil button -->
+			<button
+				type="button"
+				disabled={saving}
+				onclick={enterEditMode}
+				class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors disabled:opacity-50"
+				aria-label="Edit workout"
+			>
+				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+				</svg>
+			</button>
+		{/if}
+	</div>
+</div>
 
-	<h1 class="text-2xl font-bold mb-1">{data.workout.name}</h1>
+<div class="p-4 max-w-lg mx-auto">
 	{#if data.workout.description}
-		<p class="text-sm text-text-muted mb-6">{data.workout.description}</p>
+		<p class="text-sm text-text-muted mb-4">{data.workout.description}</p>
 	{/if}
 
 	<div class="space-y-6">
-		{#each grouped() as section}
+		{#each sections as section}
 			<div>
 				<h2 class="text-sm font-bold text-text-muted uppercase tracking-wide mb-3">
 					{section.label}
 				</h2>
-				<div class="space-y-2">
-					{#each section.exercises as we}
-						{@const exercise = we.expand?.exercise}
-						{@const target = formatTarget(we)}
-						<div class="p-3 rounded-xl border border-border border-l-4 {sectionColors[section.key] || 'border-l-main'} bg-surface">
-							<div class="flex items-start justify-between gap-2">
-								<div class="flex-1 min-w-0">
-									<div class="font-medium">{exercise?.name || 'Unknown'}</div>
-									{#if target}
-										<span class="inline-block text-xs text-text-muted bg-surface-dim px-2 py-0.5 rounded mt-1">
-											{target}
-										</span>
-									{/if}
-									{#if we.notes}
-										<p class="text-xs text-text-muted mt-1 italic">{we.notes}</p>
-									{/if}
-								</div>
-								{#if exercise}
-									<a
-										href="/exercises/{exercise.id}"
-										class="text-xs text-primary hover:underline shrink-0 mt-0.5"
-									>
-										View
-									</a>
+				{#if editing}
+					<div
+						class="space-y-2"
+						use:dragHandleZone={{ items: section.items, flipDurationMs, dropTargetStyle: {} }}
+						onconsider={(e) => handleConsider(section.key, e)}
+						onfinalize={(e) => handleFinalize(section.key, e)}
+					>
+						{#each section.items as item (item.id)}
+							<div animate:flip={{ duration: flipDurationMs }}>
+								{#if item.expand?.exercise}
+									<ExerciseListItem
+										exercise={item.expand.exercise}
+										target={formatTarget(item)}
+										editing
+										ondelete={() => deleteExercise(section.key, item.id)}
+									/>
 								{/if}
 							</div>
+						{/each}
+					</div>
+
+					<!-- Add exercise button -->
+					{#if addingToSection === section.key}
+						<div class="mt-2">
+							<select
+								class="w-full p-2 rounded-lg border border-border bg-surface text-sm"
+								onchange={(e) => {
+									const val = e.currentTarget.value;
+									if (val) addExercise(section.key, val);
+								}}
+							>
+								<option value="">Select an exercise...</option>
+								{#each availableExercises() as ex}
+									<option value={ex.id}>{ex.name}</option>
+								{/each}
+							</select>
+							<button
+								type="button"
+								onclick={() => addingToSection = null}
+								class="mt-1 text-xs text-text-muted hover:text-text"
+							>
+								Cancel
+							</button>
 						</div>
-					{/each}
-				</div>
+					{:else}
+						<button
+							type="button"
+							onclick={() => addingToSection = section.key}
+							class="mt-2 w-full p-2 rounded-lg border border-dashed border-border text-sm text-text-muted hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1"
+						>
+							<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+							</svg>
+							Add Exercise
+						</button>
+					{/if}
+				{:else}
+					<div class="space-y-2">
+						{#each section.items as item (item.id)}
+							{#if item.expand?.exercise}
+								<ExerciseListItem exercise={item.expand.exercise} target={formatTarget(item)} />
+							{/if}
+						{/each}
+					</div>
+				{/if}
 			</div>
 		{/each}
 	</div>
 </div>
+

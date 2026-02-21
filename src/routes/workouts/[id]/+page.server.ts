@@ -1,7 +1,7 @@
 import { getPb } from '$lib/pocketbase/client';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { Workout, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
+import type { Exercise, Workout, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const pb = await getPb();
@@ -19,5 +19,9 @@ export const load: PageServerLoad = async ({ params }) => {
 		expand: 'exercise'
 	});
 
-	return { workout, exercises };
+	const allExercises = await pb.collection('exercises').getFullList<Exercise>({
+		sort: 'name'
+	});
+
+	return { workout, exercises, allExercises };
 };

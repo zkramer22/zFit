@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import type { PageData } from './$types';
 
 	let { data } = $props();
@@ -14,14 +15,6 @@
 		{ value: 'warmup', label: 'Warmup' },
 		{ value: 'posterior_chain', label: 'Posterior Chain' }
 	];
-
-	const categoryColors: Record<string, string> = {
-		strength: 'bg-blue-100 text-blue-800',
-		stability: 'bg-green-100 text-green-800',
-		core: 'bg-purple-100 text-purple-800',
-		warmup: 'bg-amber-100 text-amber-800',
-		posterior_chain: 'bg-orange-100 text-orange-800'
-	};
 
 	const filtered = $derived(() => {
 		return data.exercises.filter((ex) => {
@@ -85,47 +78,7 @@
 	<!-- Exercise list -->
 	<div class="space-y-2">
 		{#each filtered() as exercise (exercise.id)}
-			<a
-				href="/exercises/{exercise.id}"
-				class="block p-3 rounded-xl border border-border bg-surface hover:bg-surface-hover
-					transition-colors active:scale-[0.99]"
-			>
-				<div class="flex items-start justify-between gap-2">
-					<div class="flex-1 min-w-0">
-						<div class="font-medium">
-							{exercise.name}
-							{#if exercise.video_urls?.length}
-								<span class="ml-1.5 text-xs font-normal text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">{exercise.video_urls.length} video{exercise.video_urls.length > 1 ? 's' : ''}</span>
-							{/if}
-						</div>
-						<div class="flex flex-wrap gap-1 mt-1.5">
-							<span
-								class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {categoryColors[
-									exercise.category
-								] || 'bg-gray-100 text-gray-800'}"
-							>
-								{exercise.category.replace('_', ' ')}
-							</span>
-							{#each exercise.muscle_groups.slice(0, 3) as mg}
-								<span
-									class="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600"
-								>
-									{mg.replace('_', ' ')}
-								</span>
-							{/each}
-						</div>
-					</div>
-					<svg
-						class="w-5 h-5 text-text-muted shrink-0 mt-1"
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-					</svg>
-				</div>
-			</a>
+			<ExerciseListItem {exercise} showVideos />
 		{/each}
 
 		{#if filtered().length === 0}
