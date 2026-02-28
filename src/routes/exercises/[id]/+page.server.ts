@@ -86,5 +86,22 @@ export const actions: Actions = {
 		videos.splice(index, 1);
 
 		await pb.collection('exercises').update(params.id, { video_urls: videos });
+	},
+
+	updateExercise: async ({ params, request }) => {
+		const formData = await request.formData();
+		const name = (formData.get('name') as string)?.trim();
+		if (!name) return fail(400, { error: 'Name is required' });
+		const category = (formData.get('category') as string) || 'strength';
+		const description = (formData.get('description') as string) || '';
+		const muscleGroups = formData.getAll('muscle_groups') as string[];
+
+		const pb = await getPb();
+		await pb.collection('exercises').update(params.id, {
+			name,
+			category,
+			description,
+			muscle_groups: muscleGroups
+		});
 	}
 };

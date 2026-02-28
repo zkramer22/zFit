@@ -1,17 +1,10 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { SetData } from '$lib/pocketbase/types';
+	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { enhance } from '$app/forms';
 
 	let { data } = $props();
-
-	const categoryColors: Record<string, string> = {
-		strength: 'bg-blue-100 text-blue-800',
-		stability: 'bg-green-100 text-green-800',
-		core: 'bg-purple-100 text-purple-800',
-		warmup: 'bg-amber-100 text-amber-800',
-		posterior_chain: 'bg-orange-100 text-orange-800'
-	};
 
 	function formatSets(sets: SetData[]): string {
 		if (!sets?.length) return 'No sets';
@@ -34,8 +27,6 @@
 		});
 	}
 
-	const youtubeSearchUrl = $derived(`https://www.youtube.com/results?search_query=${encodeURIComponent(data.exercise.name + ' exercise form')}`);
-
 	function getYoutubeId(url: string): string | null {
 		const match = url.match(
 			/(?:youtu\.be\/|youtube\.com\/(?:.*[?&]v=|.*\/))([\w-]+)/
@@ -50,48 +41,193 @@
 
 	let videoUrl = $state('');
 	let showAddVideo = $state(false);
+
+	// Edit mode state
+	let editing = $state(false);
+	let editName = $state('');
+
+	const youtubeSearchUrl = $derived(`https://www.youtube.com/results?search_query=${encodeURIComponent((editing ? editName : data.exercise.name) + ' exercise form')}`);
+	let editCategory = $state('');
+	let editDescription = $state('');
+	let editMuscleGroups = $state<string[]>([]);
+
+	function enterEditMode() {
+		editName = data.exercise.name;
+		editCategory = data.exercise.category;
+		editDescription = data.exercise.description || '';
+		editMuscleGroups = [...(data.exercise.muscle_groups || [])];
+		editing = true;
+	}
+
+	function cancelEdit() {
+		editing = false;
+	}
+
+	function toggleEditMuscleGroup(mg: string) {
+		if (editMuscleGroups.includes(mg)) {
+			editMuscleGroups = editMuscleGroups.filter(m => m !== mg);
+		} else {
+			editMuscleGroups = [...editMuscleGroups, mg];
+		}
+	}
 </script>
 
 <svelte:head>
 	<title>{data.exercise.name} — zFit</title>
 </svelte:head>
 
-<div class="p-4 max-w-lg mx-auto">
-	<!-- Back link -->
-	<a
-		href="/exercises"
-		class="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text mb-4"
-	>
-		<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-			<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-		</svg>
-		Exercises
-	</a>
-
-	<!-- Exercise info -->
-	<h1 class="text-2xl font-bold mb-2">{data.exercise.name}</h1>
-
-	<div class="flex flex-wrap gap-1.5 mb-4">
-		<span
-			class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold {categoryColors[
-				data.exercise.category
-			] || 'bg-gray-100 text-gray-800'}"
-		>
-			{data.exercise.category.replace('_', ' ')}
-		</span>
-		{#each data.exercise.muscle_groups as mg}
-			<span class="inline-block px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
-				{mg.replace('_', ' ')}
-			</span>
-		{/each}
+<!-- Sticky header -->
+<div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
+	<div class="flex items-center justify-between max-w-lg mx-auto">
+		<div class="flex items-center gap-3 min-w-0">
+			<a
+				href="/exercises"
+				class="text-text-muted hover:text-text shrink-0"
+			>
+				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+				</svg>
+			</a>
+			<h1 class="font-bold text-lg leading-tight truncate">{editing ? editName || 'Edit Exercise' : data.exercise.name}</h1>
+		</div>
+		{#if editing}
+			<div class="flex items-center gap-1">
+				<!-- Cancel button -->
+				<button
+					type="button"
+					onclick={cancelEdit}
+					class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
+					aria-label="Cancel editing"
+				>
+					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+				</button>
+			</div>
+		{:else}
+			<!-- Pencil button -->
+			<button
+				type="button"
+				onclick={enterEditMode}
+				class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
+				aria-label="Edit exercise"
+			>
+				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+				</svg>
+			</button>
+		{/if}
 	</div>
+</div>
 
-	{#if data.exercise.description}
-		<p class="text-sm text-text-muted leading-relaxed mb-6">{data.exercise.description}</p>
+<div class="p-4 max-w-lg mx-auto">
+	{#if editing}
+		<!-- Edit mode -->
+		<form
+			method="POST"
+			action="?/updateExercise"
+			use:enhance={() => {
+				return async ({ result, update }) => {
+					if (result.type === 'failure') {
+						alert(result.data?.error || 'Failed to update');
+						return;
+					}
+					editing = false;
+					await update();
+				};
+			}}
+		>
+			<div class="space-y-4 mb-6">
+				<div>
+					<label for="edit-name" class="block text-sm font-medium mb-1">Name</label>
+					<input
+						id="edit-name"
+						name="name"
+						type="text"
+						required
+						bind:value={editName}
+						class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm
+							focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+					/>
+				</div>
+				<div>
+					<label for="edit-category" class="block text-sm font-medium mb-1">Category</label>
+					<select
+						id="edit-category"
+						name="category"
+						bind:value={editCategory}
+						class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm
+							focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+					>
+						{#each CATEGORIES as cat}
+							<option value={cat.value}>{cat.label}</option>
+						{/each}
+					</select>
+				</div>
+				<div>
+					<label class="block text-sm font-medium mb-1">Muscle Groups</label>
+					<div class="flex flex-wrap gap-1.5">
+						{#each MUSCLE_GROUPS as mg}
+							<button
+								type="button"
+								onclick={() => toggleEditMuscleGroup(mg.value)}
+								class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors
+									{editMuscleGroups.includes(mg.value)
+									? 'bg-primary text-text-on-primary'
+									: 'bg-surface-dim text-text-muted hover:bg-surface-hover border border-border'}"
+							>
+								{mg.label}
+							</button>
+						{/each}
+					</div>
+					{#each editMuscleGroups as mg}
+						<input type="hidden" name="muscle_groups" value={mg} />
+					{/each}
+				</div>
+				<div>
+					<label for="edit-desc" class="block text-sm font-medium mb-1">Description</label>
+					<textarea
+						id="edit-desc"
+						name="description"
+						bind:value={editDescription}
+						rows="3"
+						class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm resize-none
+							focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+					></textarea>
+				</div>
+			</div>
+			<button
+				type="submit"
+				class="w-full py-2.5 rounded-lg text-sm font-medium bg-primary text-text-on-primary
+					hover:bg-primary/90 transition-colors"
+			>
+				Save Changes
+			</button>
+		</form>
+	{:else}
+		<!-- Read mode -->
+		<div class="flex flex-wrap gap-1.5 mb-4">
+			<span
+				class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold {CATEGORY_COLORS[
+					data.exercise.category
+				] || 'bg-gray-100 text-gray-800'}"
+			>
+				{getLabel(CATEGORIES, data.exercise.category)}
+			</span>
+			{#each data.exercise.muscle_groups as mg}
+				<span class="inline-block px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+					{getLabel(MUSCLE_GROUPS, mg)}
+				</span>
+			{/each}
+		</div>
+
+		{#if data.exercise.description}
+			<p class="text-sm text-text-muted leading-relaxed mb-6">{data.exercise.description}</p>
+		{/if}
 	{/if}
 
 	<!-- Videos -->
-	<div class="mb-8">
+	<div class="mb-8 {editing ? 'mt-6' : ''}">
 		<div class="flex items-center justify-between mb-3">
 			<h2 class="text-lg font-semibold">Videos</h2>
 			<div class="flex gap-2">
@@ -218,4 +354,3 @@
 		{/if}
 	</div>
 </div>
-

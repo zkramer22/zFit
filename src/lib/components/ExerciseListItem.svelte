@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { dragHandle } from 'svelte-dnd-action';
 	import type { Exercise } from '$lib/pocketbase/types';
+	import { CATEGORY_COLORS, CATEGORIES, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 
 	interface Props {
 		exercise: Exercise;
@@ -13,14 +14,6 @@
 	}
 
 	let { exercise, target = '', showVideos = false, editing = false, ondelete, onselect, oneditTarget }: Props = $props();
-
-	const categoryColors: Record<string, string> = {
-		strength: 'bg-blue-100 text-blue-800',
-		stability: 'bg-green-100 text-green-800',
-		core: 'bg-purple-100 text-purple-800',
-		warmup: 'bg-amber-100 text-amber-800',
-		posterior_chain: 'bg-orange-100 text-orange-800'
-	};
 </script>
 
 {#snippet content()}
@@ -32,13 +25,13 @@
 	</div>
 	<div class="flex flex-wrap gap-1 mt-1.5">
 		<span
-			class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {categoryColors[exercise.category] || 'bg-gray-100 text-gray-800'}"
+			class="inline-block px-2 py-0.5 rounded-full text-xs font-medium {CATEGORY_COLORS[exercise.category] || 'bg-gray-100 text-gray-800'}"
 		>
-			{exercise.category.replace('_', ' ')}
+			{getLabel(CATEGORIES, exercise.category)}
 		</span>
 		{#each (exercise.muscle_groups || []).slice(0, 3) as mg}
 			<span class="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
-				{mg.replace('_', ' ')}
+				{getLabel(MUSCLE_GROUPS, mg)}
 			</span>
 		{/each}
 	</div>

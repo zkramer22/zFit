@@ -1,12 +1,14 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { SvelteKitPWA } from '@vite-pwa/sveltekit';
+import { qrcode } from 'vite-plugin-qrcode';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
+		qrcode(),
 		SvelteKitPWA({
 			devOptions: {
 				enabled: true

@@ -1,20 +1,26 @@
 <script lang="ts">
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
+	import SlideReveal from '$lib/components/SlideReveal.svelte';
+	import { CATEGORIES, MUSCLE_GROUPS } from '$lib/constants';
 	import type { PageData } from './$types';
 
 	let { data } = $props();
 
 	let searchQuery = $state('');
 	let activeCategory = $state('all');
+	let showCreateForm = $state(false);
 
-	const categories = [
-		{ value: 'all', label: 'All' },
-		{ value: 'strength', label: 'Strength' },
-		{ value: 'stability', label: 'Stability' },
-		{ value: 'core', label: 'Core' },
-		{ value: 'warmup', label: 'Warmup' },
-		{ value: 'posterior_chain', label: 'Posterior Chain' }
-	];
+	const categoryFilters = [{ value: 'all', label: 'All' }, ...CATEGORIES];
+
+	let selectedMuscleGroups = $state<string[]>([]);
+
+	function toggleMuscleGroup(mg: string) {
+		if (selectedMuscleGroups.includes(mg)) {
+			selectedMuscleGroups = selectedMuscleGroups.filter(m => m !== mg);
+		} else {
+			selectedMuscleGroups = [...selectedMuscleGroups, mg];
+		}
+	}
 
 	const filtered = $derived(() => {
 		return data.exercises.filter((ex) => {
@@ -33,7 +39,85 @@
 </svelte:head>
 
 <div class="p-4 max-w-lg mx-auto">
-	<h1 class="text-2xl font-bold mb-4">Exercises</h1>
+	<div class="flex items-center justify-between mb-4">
+		<h1 class="text-2xl font-bold">Exercises</h1>
+		<button
+			type="button"
+			onclick={() => { showCreateForm = !showCreateForm; if (!showCreateForm) selectedMuscleGroups = []; }}
+			class="px-3 py-2 rounded-lg text-sm font-medium bg-primary text-text-on-primary
+				hover:bg-primary/90 transition-colors active:scale-[0.98]"
+		>
+			{showCreateForm ? 'Cancel' : 'New'}
+		</button>
+	</div>
+
+	<!-- Create exercise form -->
+	<SlideReveal open={showCreateForm}>
+		<form method="POST" action="?/createExercise" class="mb-6 p-4 rounded-xl border border-border bg-surface">
+			<div class="space-y-3">
+				<div>
+					<label for="exercise-name" class="block text-sm font-medium mb-1">Name</label>
+					<input
+						id="exercise-name"
+						name="name"
+						type="text"
+						required
+						placeholder="e.g., Bulgarian Split Squat"
+						class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm"
+					/>
+				</div>
+				<div>
+					<label for="exercise-category" class="block text-sm font-medium mb-1">Category</label>
+					<select
+						id="exercise-category"
+						name="category"
+						class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm"
+					>
+						{#each CATEGORIES as cat}
+							<option value={cat.value}>{cat.label}</option>
+						{/each}
+					</select>
+				</div>
+				<div>
+					<label class="block text-sm font-medium mb-1">Muscle Groups</label>
+					<div class="flex flex-wrap gap-1.5">
+						{#each MUSCLE_GROUPS as mg}
+							<button
+								type="button"
+								onclick={() => toggleMuscleGroup(mg.value)}
+								class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors
+									{selectedMuscleGroups.includes(mg.value)
+									? 'bg-primary text-text-on-primary'
+									: 'bg-surface-dim text-text-muted hover:bg-surface-hover border border-border'}"
+							>
+								{mg.label}
+							</button>
+						{/each}
+					</div>
+					{#each selectedMuscleGroups as mg}
+						<input type="hidden" name="muscle_groups" value={mg} />
+					{/each}
+				</div>
+				<div>
+					<label for="exercise-desc" class="block text-sm font-medium mb-1">Description</label>
+					<textarea
+						id="exercise-desc"
+						name="description"
+						placeholder="Optional description"
+						rows="2"
+						class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm resize-none"
+					></textarea>
+				</div>
+				<button
+					type="submit"
+					class="w-full py-2 rounded-lg text-sm font-medium bg-primary text-text-on-primary
+						hover:bg-primary/90 transition-colors"
+				>
+					Create Exercise
+				</button>
+			</div>
+		</form>
+	</SlideReveal>
 
 	<!-- Search -->
 	<div class="relative mb-3">
@@ -61,7 +145,7 @@
 
 	<!-- Category filters -->
 	<div class="flex gap-2 overflow-x-auto pb-3 mb-4 -mx-4 px-4 no-scrollbar">
-		{#each categories as cat}
+		{#each categoryFilters as cat}
 			<button
 				type="button"
 				onclick={() => (activeCategory = cat.value)}

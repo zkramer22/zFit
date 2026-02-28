@@ -17,6 +17,7 @@ export interface VideoRef {
 export interface Workout extends RecordModel {
 	name: string;
 	description: string;
+	tags: string[];
 }
 
 export interface WorkoutExercise extends RecordModel {

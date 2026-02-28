@@ -2,11 +2,11 @@ import { getPb } from '$lib/pocketbase/client';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-export const PATCH: RequestHandler = async ({ request }) => {
+export const PATCH: RequestHandler = async ({ request, params }) => {
 	const pb = await getPb();
 	const body = await request.json();
 
-	// Array = order updates, Object = target update
+	// Array = order updates
 	if (Array.isArray(body)) {
 		for (const { id, order } of body) {
 			await pb.collection('workout_exercises').update(id, { order });
@@ -14,6 +14,13 @@ export const PATCH: RequestHandler = async ({ request }) => {
 		return json({ saved: body.length });
 	}
 
+	// Object with "tags" = workout-level update
+	if ('tags' in body) {
+		await pb.collection('workouts').update(params.id, { tags: body.tags });
+		return json({ updated: params.id });
+	}
+
+	// Object with "id" = target update on a workout_exercise
 	const { id, target_sets, target_reps, target_weight } = body;
 	await pb.collection('workout_exercises').update(id, {
 		target_sets,

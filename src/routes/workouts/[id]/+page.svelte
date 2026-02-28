@@ -3,8 +3,37 @@
 	import { flip } from 'svelte/animate';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import Drawer from '$lib/components/Drawer.svelte';
+	import { WORKOUT_TAGS, getLabel } from '$lib/constants';
 
 	let { data } = $props();
+
+	// Tag editing
+	let editTags = $state<string[]>([...(data.workout.tags || [])]);
+	let tagsSnapshot: string[] | null = $state(null);
+
+	function toggleEditTag(tag: string) {
+		if (editTags.includes(tag)) {
+			editTags = editTags.filter(t => t !== tag);
+		} else {
+			editTags = [...editTags, tag];
+		}
+	}
+
+	async function saveTags() {
+		saving = true;
+		try {
+			await fetch(`/workouts/${data.workout.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ tags: editTags })
+			});
+			data.workout.tags = [...editTags];
+		} catch (err) {
+			console.error('Failed to save tags:', err);
+		} finally {
+			saving = false;
+		}
+	}
 
 	const flipDurationMs = 200;
 
@@ -44,13 +73,19 @@
 	function enterEditMode() {
 		// Deep-clone sections for undo snapshot
 		snapshot = sections.map(s => ({ ...s, items: s.items.map(i => ({ ...i })) }));
+		tagsSnapshot = [...editTags];
 		addedIds = [];
 		deletedItems = [];
 		editing = true;
 	}
 
 	function exitEditMode() {
+		// Persist tags if they changed
+		if (JSON.stringify(editTags) !== JSON.stringify(data.workout.tags || [])) {
+			saveTags();
+		}
 		snapshot = null;
+		tagsSnapshot = null;
 		addedIds = [];
 		deletedItems = [];
 		addingToSection = null;
@@ -82,11 +117,19 @@
 			sections = snapshot.map(s => ({ ...s, items: s.items.map(i => ({ ...i })) }));
 			// Re-persist the original order to the server
 			await persistOrder();
+			// Restore tags from snapshot
+			if (tagsSnapshot) {
+				editTags = [...tagsSnapshot];
+				if (JSON.stringify(editTags) !== JSON.stringify(data.workout.tags || [])) {
+					await saveTags();
+				}
+			}
 		} catch (err) {
 			console.error('Failed to undo:', err);
 		} finally {
 			saving = false;
 			snapshot = null;
+			tagsSnapshot = null;
 			addedIds = [];
 			deletedItems = [];
 			addingToSection = null;
@@ -343,7 +386,34 @@
 
 <div class="p-4 max-w-lg mx-auto">
 	{#if data.workout.description}
-		<p class="text-sm text-text-muted mb-4">{data.workout.description}</p>
+		<p class="text-sm text-text-muted mb-3">{data.workout.description}</p>
+	{/if}
+
+	<!-- Tags -->
+	{#if editing}
+		<div class="mb-5">
+			<label class="block text-sm font-medium mb-1.5">Tags</label>
+			<div class="flex flex-wrap gap-1.5">
+				{#each WORKOUT_TAGS as tag}
+					<button
+						type="button"
+						onclick={() => toggleEditTag(tag.value)}
+						class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors
+							{editTags.includes(tag.value)
+							? 'bg-primary text-text-on-primary'
+							: 'bg-surface-dim text-text-muted hover:bg-surface-hover border border-border'}"
+					>
+						{tag.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+	{:else if data.workout.tags?.length}
+		<div class="flex flex-wrap gap-1.5 mb-4">
+			{#each data.workout.tags as tag}
+				<span class="inline-block px-2.5 py-1 rounded-full text-xs bg-gray-100 text-gray-600">{getLabel(WORKOUT_TAGS, tag)}</span>
+			{/each}
+		</div>
 	{/if}
 
 	<div class="space-y-6">
