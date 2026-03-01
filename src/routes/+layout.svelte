@@ -1,22 +1,93 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/stores';
+	import { beforeNavigate, afterNavigate } from '$app/navigation';
+	import { saveScrollPosition, getScrollPosition } from '$lib/stores/scrollPosition.svelte';
+	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { Play, List, Dumbbell, Layers } from 'lucide-svelte';
 	let { children } = $props();
 
 	const navItems = [
-		{ href: '/exercises', label: 'Exercises', icon: 'list' },
-		{ href: '/workouts', label: 'Workouts', icon: 'dumbbell' },
-		{ href: '/programs', label: 'Programs', icon: 'layers' },
+		{ href: '/session', label: 'Session', icon: Play },
+		{ href: '/exercises', label: 'Exercises', icon: List },
+		{ href: '/workouts', label: 'Workouts', icon: Dumbbell },
+		{ href: '/programs', label: 'Programs', icon: Layers },
 	];
 
 	function isActive(href: string, pathname: string): boolean {
 		return pathname.startsWith(href);
 	}
+
+	let mainEl = $state<HTMLElement>();
+
+	function getScrollContainer(): HTMLElement | Window {
+		if (mainEl && getComputedStyle(mainEl).overflowY !== 'visible') {
+			return mainEl;
+		}
+		return window;
+	}
+
+	function getScrollTop(): number {
+		const container = getScrollContainer();
+		return container instanceof Window ? container.scrollY : container.scrollTop;
+	}
+
+	function setScrollTop(value: number) {
+		const container = getScrollContainer();
+		if (container instanceof Window) {
+			container.scrollTo(0, value);
+		} else {
+			container.scrollTop = value;
+		}
+	}
+
+	let scrollRestoreRAF: number | null = null;
+
+	beforeNavigate(({ from, type }) => {
+		// Stop any active scroll-hold loop from a previous navigation
+		if (scrollRestoreRAF !== null) {
+			cancelAnimationFrame(scrollRestoreRAF);
+			scrollRestoreRAF = null;
+		}
+
+		if (from?.url.pathname) {
+			saveScrollPosition(from.url.pathname, getScrollTop());
+		}
+
+	});
+
+	afterNavigate(({ type }) => {
+		if (type === 'popstate') {
+			const saved = getScrollPosition($page.url.pathname);
+			if (saved !== undefined) {
+				const pos = saved;
+				// Immediately set scroll position
+				setScrollTop(pos);
+
+				// Hold the scroll position across multiple frames to beat
+				// SvelteKit's own scroll reset and any layout reflows
+				let framesRemaining = 10;
+				function holdScroll() {
+					setScrollTop(pos);
+					framesRemaining--;
+					if (framesRemaining > 0) {
+						scrollRestoreRAF = requestAnimationFrame(holdScroll);
+					} else {
+						scrollRestoreRAF = null;
+					}
+				}
+				scrollRestoreRAF = requestAnimationFrame(holdScroll);
+			}
+		} else {
+			setScrollTop(0);
+		}
+	});
 </script>
 
 <!-- Top nav (desktop) -->
 <header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
-	<a href="/log" class="text-xl font-bold text-primary">zFit</a>
+	<a href="/session" class="text-xl font-bold text-primary">zFit</a>
 	<nav class="flex gap-1">
 		{#each navItems as item}
 			<a
@@ -32,7 +103,7 @@
 
 <div class="md:contents flex flex-col h-dvh">
 	<!-- Main content -->
-	<main class="flex-1 overflow-y-auto md:overflow-visible md:pb-4">
+	<main bind:this={mainEl} class="flex-1 overflow-y-auto md:overflow-visible md:pb-4">
 		{@render children()}
 	</main>
 
@@ -46,30 +117,27 @@
 					class="flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
 						{isActive(item.href, $page.url.pathname) ? 'text-primary' : 'text-text-muted'}"
 				>
-					{#if item.icon === 'edit'}
-						<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-						</svg>
-					{:else if item.icon === 'dumbbell'}
-						<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M6.5 6.5h-2a1 1 0 00-1 1v9a1 1 0 001 1h2m0-11v11m0-11h11m-11 11h11m0-11h2a1 1 0 011 1v9a1 1 0 01-1 1h-2m0-11v11M2 12h2.5m15 0H22" />
-						</svg>
-					{:else if item.icon === 'list'}
-						<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-						</svg>
-					{:else if item.icon === 'layers'}
-						<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-						</svg>
-					{:else}
-						<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-						</svg>
-					{/if}
+					<item.icon class="w-6 h-6 shrink-0" />
 					<span>{item.label}</span>
 				</a>
 			{/each}
 		</div>
 	</nav>
 </div>
+
+<AlertDialog.Root open={dialogStore.open} onOpenChange={(open) => { if (!open) dialogStore.close(); }}>
+	<AlertDialog.Content class="max-w-xs">
+		<AlertDialog.Header>
+			<AlertDialog.Title>{dialogStore.options.title}</AlertDialog.Title>
+			<AlertDialog.Description>
+				{@html dialogStore.options.description}
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
+			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+			<AlertDialog.Action onclick={() => dialogStore.handleConfirm()} class={dialogStore.options.confirmClass}>
+				{dialogStore.options.confirmLabel}
+			</AlertDialog.Action>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

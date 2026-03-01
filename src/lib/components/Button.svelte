@@ -10,7 +10,7 @@
 
 	let { variant = 'primary', size = 'md', children, class: className = '', ...rest }: Props = $props();
 
-	const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors active:scale-[0.98] touch-target';
+	const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors active:scale-[0.98]';
 
 	const variantClasses: Record<string, string> = {
 		primary: 'bg-primary text-text-on-primary hover:bg-primary-dark',

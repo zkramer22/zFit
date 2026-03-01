@@ -43,6 +43,20 @@ export const WORKOUT_TAGS: LabelValue[] = [
 	{ value: 'conditioning', label: 'Conditioning' }
 ];
 
+export const SET_UNITS: LabelValue[] = [
+	{ value: 'lb', label: 'lb' },
+	{ value: 'kg', label: 'kg' },
+	{ value: 'sec', label: 'sec' },
+	{ value: 'bw', label: 'BW' },
+	{ value: 'band', label: 'Band' }
+];
+
+export const DISTANCE_UNITS: LabelValue[] = [
+	{ value: 'yds', label: 'yds' },
+	{ value: 'ft', label: 'ft' },
+	{ value: 'm', label: 'm' }
+];
+
 /** Look up the display label for a given value from a LabelValue list. Falls back to the raw value. */
 export function getLabel(list: LabelValue[], value: string): string {
 	return list.find((item) => item.value === value)?.label ?? value;

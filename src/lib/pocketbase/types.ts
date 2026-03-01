@@ -1,5 +1,8 @@
 import type { RecordModel } from 'pocketbase';
 
+export type SetUnit = 'lb' | 'kg' | 'sec' | 'bw' | 'band';
+export type DistanceUnit = 'yds' | 'ft' | 'm';
+
 export interface Exercise extends RecordModel {
 	name: string;
 	description: string;
@@ -27,7 +30,10 @@ export interface WorkoutExercise extends RecordModel {
 	section: 'warmup' | 'main' | 'core' | 'cooldown';
 	target_sets: number;
 	target_reps: string;
-	target_weight: string;
+	target_value: string;
+	target_unit: SetUnit;
+	target_distance: string;
+	target_distance_unit: DistanceUnit | null;
 	notes: string;
 }
 
@@ -48,15 +54,17 @@ export interface Session extends RecordModel {
 	program: string;
 	date: string;
 	notes: string;
-	duration_minutes: number;
+	completed: boolean;
 }
 
 export interface SetData {
 	reps: number | null;
-	weight: number | null;
-	weight_unit: 'lb' | 'kg' | 'band' | 'bw';
-	duration_sec: number | null;
+	value: number | null;
+	unit: SetUnit;
+	distance: number | null;
+	distance_unit: DistanceUnit | null;
 	notes: string;
+	completed: boolean;
 }
 
 export interface SessionEntry extends RecordModel {

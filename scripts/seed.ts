@@ -208,55 +208,58 @@ interface WorkoutExerciseDef {
 	order: number;
 	target_sets: number;
 	target_reps: string;
-	target_weight: string;
+	target_value: string;
+	target_unit: 'lb' | 'kg' | 'sec' | 'bw' | 'band';
+	target_distance: string;
+	target_distance_unit: 'yds' | 'ft' | 'm' | null;
 	notes: string;
 }
 
 // Warmup block shared by all 3 workouts
 const warmupBlock: Omit<WorkoutExerciseDef, 'workoutIndex'>[] = [
-	{ exerciseName: 'Banded Clamshells', section: 'warmup', order: 1, target_sets: 1, target_reps: '15 each side', target_weight: 'band', notes: '' },
-	{ exerciseName: 'Banded Fire Hydrants', section: 'warmup', order: 2, target_sets: 1, target_reps: '15 each side', target_weight: 'band', notes: '' },
-	{ exerciseName: 'Banded Monster Walks', section: 'warmup', order: 3, target_sets: 1, target_reps: '20 each direction', target_weight: 'band', notes: '' },
-	{ exerciseName: 'Side-Lying Straight Leg Lift', section: 'warmup', order: 4, target_sets: 1, target_reps: '15 each side', target_weight: 'bw', notes: '' },
-	{ exerciseName: 'Single-Leg Balance Hold', section: 'warmup', order: 5, target_sets: 1, target_reps: '30 sec each side', target_weight: 'bw', notes: '' },
+	{ exerciseName: 'Banded Clamshells', section: 'warmup', order: 1, target_sets: 1, target_reps: '15 each side', target_value: '', target_unit: 'band', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Banded Fire Hydrants', section: 'warmup', order: 2, target_sets: 1, target_reps: '15 each side', target_value: '', target_unit: 'band', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Banded Monster Walks', section: 'warmup', order: 3, target_sets: 1, target_reps: '20 each direction', target_value: '', target_unit: 'band', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Side-Lying Straight Leg Lift', section: 'warmup', order: 4, target_sets: 1, target_reps: '15 each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Single-Leg Balance Hold', section: 'warmup', order: 5, target_sets: 1, target_reps: '30 sec each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: '' },
 ];
 
 const workoutExercises: WorkoutExerciseDef[] = [
 	// Workout 0 (Lower Body Strength + Core) — warmup
 	...warmupBlock.map(e => ({ ...e, workoutIndex: 0 })),
 	// Workout 0 — main
-	{ workoutIndex: 0, exerciseName: 'Leg Press (Bilateral)', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_weight: '125 lb', notes: 'Feet slightly high on platform. Depth above 90° at hip.' },
-	{ workoutIndex: 0, exerciseName: 'Leg Press (Single Leg)', section: 'main', order: 7, target_sets: 2, target_reps: '10-12 each', target_weight: '75 lb', notes: 'Right leg may need less weight' },
-	{ workoutIndex: 0, exerciseName: 'Leg Curl Machine', section: 'main', order: 8, target_sets: 3, target_reps: '12-15', target_weight: '', notes: 'Start light. Critical for hip stability and ski readiness.' },
-	{ workoutIndex: 0, exerciseName: 'Hip Abduction Machine', section: 'main', order: 9, target_sets: 3, target_reps: '15', target_weight: '', notes: 'Controlled on return. Don\'t let it slam shut.' },
-	{ workoutIndex: 0, exerciseName: 'Goblet Squat', section: 'main', order: 10, target_sets: 2, target_reps: '12-15', target_weight: '20 lb KB', notes: 'Partial ROM. Heels elevated on plate if needed. Deepen ROM before adding weight.' },
+	{ workoutIndex: 0, exerciseName: 'Leg Press (Bilateral)', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_value: '125', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Feet slightly high on platform. Depth above 90° at hip.' },
+	{ workoutIndex: 0, exerciseName: 'Leg Press (Single Leg)', section: 'main', order: 7, target_sets: 2, target_reps: '10-12 each', target_value: '75', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Right leg may need less weight' },
+	{ workoutIndex: 0, exerciseName: 'Leg Curl Machine', section: 'main', order: 8, target_sets: 3, target_reps: '12-15', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Start light. Critical for hip stability and ski readiness.' },
+	{ workoutIndex: 0, exerciseName: 'Hip Abduction Machine', section: 'main', order: 9, target_sets: 3, target_reps: '15', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Controlled on return. Don\'t let it slam shut.' },
+	{ workoutIndex: 0, exerciseName: 'Goblet Squat', section: 'main', order: 10, target_sets: 2, target_reps: '12-15', target_value: '20', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Partial ROM. Heels elevated on plate if needed. Deepen ROM before adding weight.' },
 	// Workout 0 — core
-	{ workoutIndex: 0, exerciseName: 'Dead Bugs', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Keep low back pressed into floor' },
-	{ workoutIndex: 0, exerciseName: 'Pallof Press', section: 'core', order: 12, target_sets: 3, target_reps: '10 each side', target_weight: '', notes: 'Anti-rotation. Light resistance.' },
+	{ workoutIndex: 0, exerciseName: 'Dead Bugs', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Keep low back pressed into floor' },
+	{ workoutIndex: 0, exerciseName: 'Pallof Press', section: 'core', order: 12, target_sets: 3, target_reps: '10 each side', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Anti-rotation. Light resistance.' },
 
 	// Workout 1 (Posterior Chain + Back) — warmup
 	...warmupBlock.map(e => ({ ...e, workoutIndex: 1 })),
 	// Workout 1 — main
-	{ workoutIndex: 1, exerciseName: 'Back Extension Hold', section: 'main', order: 6, target_sets: 3, target_reps: '30-45 sec hold', target_weight: 'bw', notes: 'Iso hold progression. Log hold times every session.' },
-	{ workoutIndex: 1, exerciseName: 'Kettlebell Romanian Deadlift', section: 'main', order: 7, target_sets: 3, target_reps: '10-12', target_weight: '20 lb KB', notes: 'Deepen hinge before adding weight' },
-	{ workoutIndex: 1, exerciseName: 'Glute Bridge', section: 'main', order: 8, target_sets: 3, target_reps: '15', target_weight: 'bw', notes: 'Squeeze hard at top, hold 2 sec. Progress: BW bilateral → BW single leg → weighted.' },
-	{ workoutIndex: 1, exerciseName: 'Leg Curl Machine', section: 'main', order: 9, target_sets: 3, target_reps: '12-15', target_weight: '', notes: 'Same as Day 1 — hammering hamstrings 2x/week' },
-	{ workoutIndex: 1, exerciseName: "Farmer's Carry", section: 'main', order: 10, target_sets: 3, target_reps: '30-40 sec', target_weight: '', notes: 'Moderate weight. Deliberate, even steps.' },
+	{ workoutIndex: 1, exerciseName: 'Back Extension Hold', section: 'main', order: 6, target_sets: 3, target_reps: '30-45 sec hold', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Iso hold progression. Log hold times every session.' },
+	{ workoutIndex: 1, exerciseName: 'Kettlebell Romanian Deadlift', section: 'main', order: 7, target_sets: 3, target_reps: '10-12', target_value: '20', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Deepen hinge before adding weight' },
+	{ workoutIndex: 1, exerciseName: 'Glute Bridge', section: 'main', order: 8, target_sets: 3, target_reps: '15', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Squeeze hard at top, hold 2 sec. Progress: BW bilateral → BW single leg → weighted.' },
+	{ workoutIndex: 1, exerciseName: 'Leg Curl Machine', section: 'main', order: 9, target_sets: 3, target_reps: '12-15', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Same as Day 1 — hammering hamstrings 2x/week' },
+	{ workoutIndex: 1, exerciseName: "Farmer's Carry", section: 'main', order: 10, target_sets: 3, target_reps: '30-40 sec', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Moderate weight. Deliberate, even steps.' },
 	// Workout 1 — core
-	{ workoutIndex: 1, exerciseName: 'Bird-Dog', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Hold top position 3 sec' },
-	{ workoutIndex: 1, exerciseName: 'Side Plank', section: 'core', order: 12, target_sets: 3, target_reps: '20-30 sec each side', target_weight: 'bw', notes: 'Modified from knees if needed' },
+	{ workoutIndex: 1, exerciseName: 'Bird-Dog', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Hold top position 3 sec' },
+	{ workoutIndex: 1, exerciseName: 'Side Plank', section: 'core', order: 12, target_sets: 3, target_reps: '20-30 sec each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Modified from knees if needed' },
 
 	// Workout 2 (Stability & Unilateral + Core) — warmup
 	...warmupBlock.map(e => ({ ...e, workoutIndex: 2 })),
 	// Workout 2 — main
-	{ workoutIndex: 2, exerciseName: 'Balance Board Squats', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_weight: '20 lb KB', notes: 'RevBalance or BOSU. Add weight only when balance is automatic.' },
-	{ workoutIndex: 2, exerciseName: 'Step-Ups', section: 'main', order: 7, target_sets: 3, target_reps: '10 each leg', target_weight: 'bw', notes: 'Low box 6-8 inches. Drive through heel, don\'t push off back foot.' },
-	{ workoutIndex: 2, exerciseName: 'Cable Hip Abduction', section: 'main', order: 8, target_sets: 2, target_reps: '12-15 each leg', target_weight: '', notes: 'Stand tall, don\'t lean away' },
-	{ workoutIndex: 2, exerciseName: 'Cable Hip Extension', section: 'main', order: 9, target_sets: 2, target_reps: '12-15 each leg', target_weight: '', notes: 'No adduction past midline' },
-	{ workoutIndex: 2, exerciseName: 'Single-Leg Calf Raise', section: 'main', order: 10, target_sets: 3, target_reps: '15 each leg', target_weight: 'bw', notes: 'Full range on a step' },
+	{ workoutIndex: 2, exerciseName: 'Balance Board Squats', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_value: '20', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'RevBalance or BOSU. Add weight only when balance is automatic.' },
+	{ workoutIndex: 2, exerciseName: 'Step-Ups', section: 'main', order: 7, target_sets: 3, target_reps: '10 each leg', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Low box 6-8 inches. Drive through heel, don\'t push off back foot.' },
+	{ workoutIndex: 2, exerciseName: 'Cable Hip Abduction', section: 'main', order: 8, target_sets: 2, target_reps: '12-15 each leg', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Stand tall, don\'t lean away' },
+	{ workoutIndex: 2, exerciseName: 'Cable Hip Extension', section: 'main', order: 9, target_sets: 2, target_reps: '12-15 each leg', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'No adduction past midline' },
+	{ workoutIndex: 2, exerciseName: 'Single-Leg Calf Raise', section: 'main', order: 10, target_sets: 3, target_reps: '15 each leg', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Full range on a step' },
 	// Workout 2 — core
-	{ workoutIndex: 2, exerciseName: 'Pallof Press', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_weight: '', notes: 'With lateral step away from anchor' },
-	{ workoutIndex: 2, exerciseName: 'Dead Bugs', section: 'core', order: 12, target_sets: 3, target_reps: '8 each side', target_weight: 'bw', notes: 'Slow tempo: 3 sec extend, 3 sec return' },
+	{ workoutIndex: 2, exerciseName: 'Pallof Press', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'With lateral step away from anchor' },
+	{ workoutIndex: 2, exerciseName: 'Dead Bugs', section: 'core', order: 12, target_sets: 3, target_reps: '8 each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Slow tempo: 3 sec extend, 3 sec return' },
 ];
 
 // ── Program definition ────────────────────────────────────────────────
@@ -350,7 +353,10 @@ async function seed() {
 			section: we.section,
 			target_sets: we.target_sets,
 			target_reps: we.target_reps,
-			target_weight: we.target_weight,
+			target_value: we.target_value,
+			target_unit: we.target_unit,
+			target_distance: we.target_distance,
+			target_distance_unit: we.target_distance_unit,
 			notes: we.notes
 		});
 		console.log(`  + ${workouts[we.workoutIndex].name} #${we.order} ${we.exerciseName}`);

@@ -14,7 +14,17 @@
       "Bash(npx svelte-kit sync 2>&1)",
       "Bash(npx svelte-check --threshold error 2>&1 | tail -3)",
       "WebFetch(domain:www.npmjs.com)",
-      "Bash(npx svelte-kit sync 2>&1 && npx svelte-check --threshold error 2>&1 | tail -5)"
+      "Bash(npx svelte-kit sync 2>&1 && npx svelte-check --threshold error 2>&1 | tail -5)",
+      "Bash(ls -la /Users/zkramer22/dev/me/zFit/src/routes/workouts/\\\\[id\\\\]/)",
+      "Bash(ls -la /Users/zkramer22/dev/me/zFit/src/routes/log/\\\\[sessionId\\\\]/)",
+      "Bash(npx svelte-check --threshold error 2>&1 | tail -10)",
+      "Bash(npx vite build 2>&1 | tail -10)",
+      "Bash(ls /Users/zkramer22/dev/me/zFit/pb* /Users/zkramer22/dev/me/zFit/pocketbase* 2>/dev/null; ls /Users/zkramer22/dev/me/zFit/*.env* 2>/dev/null; ls /Users/zkramer22/dev/me/zFit/.env* 2>/dev/null)",
+      "Bash(ls -la /Users/zkramer22/dev/me/zFit/pb_* /Users/zkramer22/dev/me/zFit/pocketbase 2>/dev/null; find /Users/zkramer22/dev/me/zFit -maxdepth 2 -name \"pocketbase\" -o -name \"pb\" 2>/dev/null)",
+      "Bash(brew list pocketbase)",
+      "Bash(od -c /Users/zkramer22/dev/me/zFit/src/routes/workouts/\\\\[id\\\\]/+page.svelte | head -5)",
+      "Bash(npx svelte-check --threshold error 2>&1 | tail -5)",
+      "Bash(npx shadcn-svelte@latest init --base-color slate --css src/app.css --components-alias '$lib/components' --utils-alias '$lib/utils' --ui-alias '$lib/components/ui' 2>&1)"
     ]
   }
 }

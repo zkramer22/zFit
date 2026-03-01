@@ -1,4 +1,4 @@
-import type { SessionEntryExpanded, SetData } from '$lib/pocketbase/types';
+import type { SessionEntryExpanded, SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
 
 export interface EntryState {
 	id: string;
@@ -12,7 +12,10 @@ export interface EntryState {
 	notes: string;
 	targetSets: number;
 	targetReps: string;
-	targetWeight: string;
+	targetValue: string;
+	targetUnit: SetUnit;
+	targetDistance: string;
+	targetDistanceUnit: DistanceUnit | null;
 	workoutNotes: string;
 	lastSessionSets: SetData[];
 	dirty: boolean;
@@ -24,6 +27,11 @@ function createSessionStore() {
 	let workoutName = $state<string>('');
 	let startTime = $state<number>(Date.now());
 	let saving = $state<boolean>(false);
+
+	// Guided mode state
+	let guidedMode = $state(false);
+	let guidedExerciseIndex = $state(0);
+	let guidedSetIndex = $state(0);
 
 	const entriesBySection = $derived(() => {
 		const sections: Record<string, EntryState[]> = {};
@@ -48,6 +56,28 @@ function createSessionStore() {
 
 	const elapsedMinutes = $derived(() => Math.floor((Date.now() - startTime) / 60000));
 
+	// Flat list of entries in display order for guided mode navigation
+	const flatEntries = $derived(() => {
+		return orderedSections().flatMap(s => s.entries);
+	});
+
+	const currentGuidedEntry = $derived(() => {
+		const flat = flatEntries();
+		return flat[guidedExerciseIndex] || null;
+	});
+
+	const guidedPosition = $derived(() => {
+		const flat = flatEntries();
+		const entry = flat[guidedExerciseIndex];
+		if (!entry) return { exercise: 0, totalExercises: 0, set: 0, totalSets: 0 };
+		return {
+			exercise: guidedExerciseIndex + 1,
+			totalExercises: flat.length,
+			set: guidedSetIndex + 1,
+			totalSets: entry.targetSets || entry.sets.length || 1
+		};
+	});
+
 	return {
 		get entries() { return entries; },
 		get sessionId() { return sessionId; },
@@ -58,6 +88,12 @@ function createSessionStore() {
 		get orderedSections() { return orderedSections; },
 		get dirtyEntries() { return dirtyEntries; },
 		get elapsedMinutes() { return elapsedMinutes; },
+		get guidedMode() { return guidedMode; },
+		get guidedExerciseIndex() { return guidedExerciseIndex; },
+		get guidedSetIndex() { return guidedSetIndex; },
+		get currentGuidedEntry() { return currentGuidedEntry; },
+		get guidedPosition() { return guidedPosition; },
+		get flatEntries() { return flatEntries; },
 		set saving(v: boolean) { saving = v; },
 
 		init(
@@ -69,6 +105,59 @@ function createSessionStore() {
 			workoutName = name;
 			entries = entryData;
 			startTime = Date.now();
+			guidedMode = false;
+			guidedExerciseIndex = 0;
+			guidedSetIndex = 0;
+		},
+
+		toggleGuidedMode() {
+			guidedMode = !guidedMode;
+			if (guidedMode) {
+				guidedExerciseIndex = 0;
+				guidedSetIndex = 0;
+			}
+		},
+
+		advanceGuided() {
+			const flat = flatEntries();
+			const entry = flat[guidedExerciseIndex];
+			if (!entry) return;
+
+			const maxSets = entry.targetSets || entry.sets.length;
+			if (guidedSetIndex < maxSets - 1) {
+				guidedSetIndex++;
+			} else if (guidedExerciseIndex < flat.length - 1) {
+				guidedExerciseIndex++;
+				guidedSetIndex = 0;
+			}
+			// else: at the end, do nothing
+		},
+
+		guidedPrevious() {
+			if (guidedSetIndex > 0) {
+				guidedSetIndex--;
+			} else if (guidedExerciseIndex > 0) {
+				guidedExerciseIndex--;
+				const flat = flatEntries();
+				const prevEntry = flat[guidedExerciseIndex];
+				guidedSetIndex = Math.max(0, (prevEntry?.targetSets || prevEntry?.sets.length || 1) - 1);
+			}
+		},
+
+		guidedNext() {
+			const flat = flatEntries();
+			if (guidedExerciseIndex < flat.length - 1) {
+				guidedExerciseIndex++;
+				guidedSetIndex = 0;
+			}
+		},
+
+		guidedSkip() {
+			const flat = flatEntries();
+			if (guidedExerciseIndex < flat.length - 1) {
+				guidedExerciseIndex++;
+				guidedSetIndex = 0;
+			}
 		},
 
 		addSet(entryId: string) {
@@ -77,8 +166,8 @@ function createSessionStore() {
 
 			const lastSet = entry.sets[entry.sets.length - 1];
 			const newSet: SetData = lastSet
-				? { ...lastSet, notes: '' }
-				: { reps: null, weight: null, weight_unit: 'lb', duration_sec: null, notes: '' };
+				? { ...lastSet, notes: '', completed: false }
+				: { reps: null, value: null, unit: entry.targetUnit || 'lb', distance: null, distance_unit: null, notes: '', completed: false };
 
 			entry.sets = [...entry.sets, newSet];
 			entry.dirty = true;
