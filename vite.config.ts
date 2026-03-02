@@ -23,7 +23,7 @@ export default defineConfig({
 				background_color: '#ffffff',
 				display: 'standalone',
 				scope: '/',
-				start_url: '/log',
+				start_url: '/session',
 				icons: [
 					{
 						src: '/icons/icon-192.png',
@@ -40,7 +40,7 @@ export default defineConfig({
 			workbox: {
 				runtimeCaching: [
 					{
-						urlPattern: /^https?:\/\/192\.168\.\d+\.\d+:8090\/api\/.*/,
+						urlPattern: /\/api\/.*/,
 						handler: 'NetworkFirst',
 						options: {
 							cacheName: 'pocketbase-api',

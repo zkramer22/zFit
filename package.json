@@ -31,6 +31,7 @@
 		"vite-plugin-qrcode": "^0.3.0"
 	},
 	"dependencies": {
+		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@tailwindcss/vite": "^4.1.18",
 		"@vite-pwa/sveltekit": "^1.1.0",
