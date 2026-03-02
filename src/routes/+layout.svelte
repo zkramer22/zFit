@@ -5,14 +5,13 @@
 	import { saveScrollPosition, getScrollPosition } from '$lib/stores/scrollPosition.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Play, List, Dumbbell, Layers } from 'lucide-svelte';
+	import { Play, List, Dumbbell } from 'lucide-svelte';
 	let { children } = $props();
 
 	const navItems = [
-		{ href: '/session', label: 'Session', icon: Play },
-		{ href: '/exercises', label: 'Exercises', icon: List },
+		{ href: '/session', label: 'Sessions', icon: Play },
 		{ href: '/workouts', label: 'Workouts', icon: Dumbbell },
-		{ href: '/programs', label: 'Programs', icon: Layers },
+		{ href: '/exercises', label: 'Exercises', icon: List },
 	];
 
 	function isActive(href: string, pathname: string): boolean {
