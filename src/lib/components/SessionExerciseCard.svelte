@@ -67,9 +67,6 @@
 				</svg>
 			</div>
 		</div>
-		{#if !expanded && lastSessionPreview()}
-			<div class="text-xs text-text-muted mt-1 truncate">Last: {lastSessionPreview()}</div>
-		{/if}
 	</button>
 
 	<!-- Expanded content -->
