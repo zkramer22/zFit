@@ -6,6 +6,7 @@
 	import { CATEGORIES, MUSCLE_GROUPS } from '$lib/constants';
 	import ArrowUpNarrowWide from 'lucide-svelte/icons/arrow-up-narrow-wide';
 	import ArrowDownNarrowWide from 'lucide-svelte/icons/arrow-down-narrow-wide';
+	import AlphabetScroller from '$lib/components/AlphabetScroller.svelte';
 
 	let searchQuery = $state('');
 	let activeCategory = $state('');
@@ -227,8 +228,13 @@
 			{/each}
 		</div>
 	{:else}
-		<div class="space-y-2">
-			{#each filtered() as exercise (exercise.id)}
+		<div class="space-y-2 pr-8" data-alphabet-list>
+			{#each filtered() as exercise, i (exercise.id)}
+				{@const letter = exercise.name[0]?.toUpperCase() || ''}
+				{@const prevLetter = i > 0 ? filtered()[i - 1]?.name[0]?.toUpperCase() : ''}
+				{#if letter !== prevLetter}
+					<div data-letter={letter}></div>
+				{/if}
 				<ExerciseListItem {exercise} showVideos />
 			{/each}
 
@@ -238,6 +244,8 @@
 				</div>
 			{/if}
 		</div>
+
+		<AlphabetScroller />
 	{/if}
 </div>
 

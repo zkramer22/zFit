@@ -4,13 +4,13 @@ export interface LabelValue {
 }
 
 export const CATEGORIES: LabelValue[] = [
-	{ value: 'strength', label: 'Strength' },
-	{ value: 'stability', label: 'Stability' },
+	{ value: 'bodyweight', label: 'Bodyweight' },
 	{ value: 'core', label: 'Core' },
-	{ value: 'warmup', label: 'Warmup' },
 	{ value: 'posterior_chain', label: 'Posterior Chain' },
 	{ value: 'pt', label: 'PT' },
-	{ value: 'bodyweight', label: 'Bodyweight' }
+	{ value: 'stability', label: 'Stability' },
+	{ value: 'strength', label: 'Strength' },
+	{ value: 'warmup', label: 'Warmup' }
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -24,27 +24,27 @@ export const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export const MUSCLE_GROUPS: LabelValue[] = [
-	{ value: 'quads', label: 'Quads' },
+	{ value: 'abductors', label: 'Abductors' },
+	{ value: 'adductors', label: 'Adductors' },
+	{ value: 'back', label: 'Back' },
+	{ value: 'calves', label: 'Calves' },
+	{ value: 'core', label: 'Core' },
 	{ value: 'glutes', label: 'Glutes' },
 	{ value: 'hamstrings', label: 'Hamstrings' },
 	{ value: 'hip_flexors', label: 'Hip Flexors' },
-	{ value: 'calves', label: 'Calves' },
-	{ value: 'core', label: 'Core' },
-	{ value: 'back', label: 'Back' },
-	{ value: 'shoulders', label: 'Shoulders' },
-	{ value: 'adductors', label: 'Adductors' },
-	{ value: 'abductors', label: 'Abductors' }
+	{ value: 'quads', label: 'Quads' },
+	{ value: 'shoulders', label: 'Shoulders' }
 ];
 
 export const WORKOUT_TAGS: LabelValue[] = [
-	{ value: 'upper body', label: 'Upper Body' },
-	{ value: 'lower body', label: 'Lower Body' },
+	{ value: 'conditioning', label: 'Conditioning' },
 	{ value: 'full body', label: 'Full Body' },
-	{ value: 'push', label: 'Push' },
-	{ value: 'pull', label: 'Pull' },
-	{ value: 'recovery', label: 'Recovery' },
+	{ value: 'lower body', label: 'Lower Body' },
 	{ value: 'mobility', label: 'Mobility' },
-	{ value: 'conditioning', label: 'Conditioning' }
+	{ value: 'pull', label: 'Pull' },
+	{ value: 'push', label: 'Push' },
+	{ value: 'recovery', label: 'Recovery' },
+	{ value: 'upper body', label: 'Upper Body' }
 ];
 
 export const SET_UNITS: LabelValue[] = [

@@ -25,7 +25,13 @@
       "Bash(od -c /Users/zkramer22/dev/me/zFit/src/routes/workouts/\\\\[id\\\\]/+page.svelte | head -5)",
       "Bash(npx svelte-check --threshold error 2>&1 | tail -5)",
       "Bash(npx shadcn-svelte@latest init --base-color slate --css src/app.css --components-alias '$lib/components' --utils-alias '$lib/utils' --ui-alias '$lib/components/ui' 2>&1)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "WebFetch(domain:shadcn-svelte.com)",
+      "mcp__ide__getDiagnostics",
+      "Bash(npx svelte-check --threshold error 2>&1 | tail -20)",
+      "Bash(npx svelte-check --threshold error 2>&1 | tail -30)",
+      "Bash(npx svelte-check --threshold warning 2>&1 | tail -15)",
+      "Bash(npx vite build 2>&1 | tail -20)"
     ]
   }
 }
