@@ -8,7 +8,9 @@ export const CATEGORIES: LabelValue[] = [
 	{ value: 'stability', label: 'Stability' },
 	{ value: 'core', label: 'Core' },
 	{ value: 'warmup', label: 'Warmup' },
-	{ value: 'posterior_chain', label: 'Posterior Chain' }
+	{ value: 'posterior_chain', label: 'Posterior Chain' },
+	{ value: 'pt', label: 'PT' },
+	{ value: 'bodyweight', label: 'Bodyweight' }
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {
@@ -16,7 +18,9 @@ export const CATEGORY_COLORS: Record<string, string> = {
 	stability: 'bg-green-100 text-green-800',
 	core: 'bg-purple-100 text-purple-800',
 	warmup: 'bg-amber-100 text-amber-800',
-	posterior_chain: 'bg-orange-100 text-orange-800'
+	posterior_chain: 'bg-orange-100 text-orange-800',
+	pt: 'bg-pink-100 text-pink-800',
+	bodyweight: 'bg-teal-100 text-teal-800'
 };
 
 export const MUSCLE_GROUPS: LabelValue[] = [

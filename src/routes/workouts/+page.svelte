@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
+	import { workoutCache } from '$lib/stores/workoutCache.svelte';
+	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import type { Workout, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
 	import { WORKOUT_TAGS, getLabel } from '$lib/constants';
 	import ArrowUpNarrowWide from 'lucide-svelte/icons/arrow-up-narrow-wide';
@@ -8,15 +10,10 @@
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 
-	let workouts = $state<Workout[]>([]);
-	let exerciseCounts = $state<Record<string, number>>({});
-	let searchMeta = $state<Record<string, string>>({});
-	let loading = $state(true);
-
 	let showCreateForm = $state(false);
 	let editingList = $state(false);
 	let searchQuery = $state('');
-	let activeTag = $state('all');
+	let activeTag = $state('');
 	let sortBy = $state<'name' | 'newest' | 'exercises'>('name');
 	let sortAsc = $state(true);
 
@@ -30,29 +27,34 @@
 		}
 	}
 
-	const filterTags = [{ value: 'all', label: 'All' }, ...WORKOUT_TAGS];
+	const filterTags = WORKOUT_TAGS;
 
-	async function loadWorkouts() {
-		loading = true;
-		const [ws, allWE] = await Promise.all([
-			pb.collection('workouts').getFullList<Workout>({ sort: 'name' }),
-			pb.collection('workout_exercises').getFullList<WorkoutExerciseExpanded>({ expand: 'exercise' })
-		]);
-
+	// Derive exercise counts and search meta from caches
+	const exerciseCounts = $derived(() => {
 		const counts: Record<string, number> = {};
-		const meta: Record<string, string> = {};
 		const byWorkout = new Map<string, WorkoutExerciseExpanded[]>();
-
-		for (const we of allWE) {
+		for (const we of workoutExerciseCache.items) {
 			const list = byWorkout.get(we.workout) || [];
 			list.push(we);
 			byWorkout.set(we.workout, list);
 		}
-
-		for (const w of ws) {
+		for (const w of workoutCache.items) {
 			const wes = byWorkout.get(w.id) || [];
 			counts[w.id] = wes.filter(we => we.section !== 'warmup').length;
+		}
+		return counts;
+	});
 
+	const searchMeta = $derived(() => {
+		const meta: Record<string, string> = {};
+		const byWorkout = new Map<string, WorkoutExerciseExpanded[]>();
+		for (const we of workoutExerciseCache.items) {
+			const list = byWorkout.get(we.workout) || [];
+			list.push(we);
+			byWorkout.set(we.workout, list);
+		}
+		for (const w of workoutCache.items) {
+			const wes = byWorkout.get(w.id) || [];
 			const parts: string[] = [];
 			for (const we of wes) {
 				const ex = we.expand?.exercise;
@@ -62,26 +64,22 @@
 			}
 			meta[w.id] = parts.join(' ').toLowerCase();
 		}
-
-		workouts = ws;
-		exerciseCounts = counts;
-		searchMeta = meta;
-		loading = false;
-	}
-
-	$effect(() => { loadWorkouts(); });
+		return meta;
+	});
 
 	const filtered = $derived(() => {
 		const q = searchQuery.toLowerCase();
-		let list = workouts.filter((w) => {
-			if (activeTag !== 'all') {
+		const counts = exerciseCounts();
+		const meta = searchMeta();
+		let list = workoutCache.items.filter((w) => {
+			if (activeTag) {
 				if (!(w.tags || []).includes(activeTag)) return false;
 			}
 			if (q) {
 				const nameMatch = w.name.toLowerCase().includes(q);
 				const descMatch = w.description?.toLowerCase().includes(q);
 				const tagMatch = (w.tags || []).some((t: string) => t.toLowerCase().includes(q));
-				const metaMatch = (searchMeta[w.id] || '').includes(q);
+				const metaMatch = (meta[w.id] || '').includes(q);
 				if (!nameMatch && !descMatch && !tagMatch && !metaMatch) return false;
 			}
 			return true;
@@ -93,7 +91,7 @@
 		} else if (sortBy === 'newest') {
 			list.sort((a, b) => dir * ((a.updated ?? '').localeCompare(b.updated ?? '')));
 		} else if (sortBy === 'exercises') {
-			list.sort((a, b) => dir * ((exerciseCounts[a.id] || 0) - (exerciseCounts[b.id] || 0)));
+			list.sort((a, b) => dir * ((counts[a.id] || 0) - (counts[b.id] || 0)));
 		}
 
 		return list;
@@ -114,6 +112,7 @@
 
 		selectedTags = [];
 		showCreateForm = false;
+		await workoutCache.invalidate();
 		await goto(`/workouts/${record.id}?edit=1`);
 	}
 
@@ -131,7 +130,8 @@
 					await pb.collection('workout_exercises').delete(we.id);
 				}
 				await pb.collection('workouts').delete(workout.id);
-				workouts = workouts.filter(w => w.id !== workout.id);
+				await workoutCache.invalidate();
+				await workoutExerciseCache.invalidate();
 			}
 		});
 	}
@@ -317,7 +317,7 @@
 		{#each filterTags as tag}
 			<button
 				type="button"
-				onclick={() => (activeTag = tag.value)}
+				onclick={() => (activeTag = activeTag === tag.value ? '' : tag.value)}
 				class="shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors
 					{activeTag === tag.value
 					? 'bg-primary text-text-on-primary border border-transparent'
@@ -329,7 +329,7 @@
 	</div>
 
 	<!-- Workout list -->
-	{#if loading}
+	{#if workoutCache.loading && !workoutCache.initialized}
 		<div class="space-y-2">
 			{#each Array(6) as _}
 				<div class="h-20 rounded-xl bg-surface-dim animate-pulse"></div>
@@ -358,7 +358,7 @@
 									<div class="text-sm text-text-muted mt-1">{workout.description}</div>
 								{/if}
 								<div class="text-xs text-text-muted mt-1.5">
-									{exerciseCounts[workout.id] || 0} exercises
+									{exerciseCounts()[workout.id] || 0} exercises
 								</div>
 							</div>
 							<svg

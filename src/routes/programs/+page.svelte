@@ -1,23 +1,22 @@
 <script lang="ts">
 	import { pb } from '$lib/pocketbase/client';
+	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import type { Program, ProgramWorkoutExpanded, Workout } from '$lib/pocketbase/types';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 
 	let programs = $state<(Program & { workouts: ProgramWorkoutExpanded[] })[]>([]);
-	let allWorkouts = $state<Workout[]>([]);
 	let loading = $state(true);
 	let showCreateForm = $state(false);
 
 	async function loadPrograms() {
 		loading = true;
 		try {
-			const [progs, pws, ws] = await Promise.all([
+			const [progs, pws] = await Promise.all([
 				pb.collection('programs').getFullList<Program>({ sort: '-active,name' }),
 				pb.collection('program_workouts').getFullList<ProgramWorkoutExpanded>({
 					sort: 'day_number',
 					expand: 'workout'
-				}),
-				pb.collection('workouts').getFullList<Workout>({ sort: 'name' })
+				})
 			]);
 
 			// Group program_workouts by program
@@ -32,7 +31,6 @@
 				...p,
 				workouts: pwsByProgram.get(p.id) || []
 			}));
-			allWorkouts = ws;
 		} catch (err) {
 			console.error('Failed to load programs:', err);
 		} finally {
@@ -284,7 +282,7 @@
 								<select name="workoutId" required
 									class="flex-1 px-3 py-2 rounded-lg border border-border bg-surface text-sm">
 									<option value="" disabled selected>Add a workout...</option>
-									{#each allWorkouts as workout}
+									{#each workoutCache.items as workout}
 										<option value={workout.id}>{workout.name}</option>
 									{/each}
 								</select>

@@ -1,21 +1,18 @@
 <script lang="ts">
 	import { pb } from '$lib/pocketbase/client';
-	import type { Exercise } from '$lib/pocketbase/types';
+	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import { CATEGORIES, MUSCLE_GROUPS } from '$lib/constants';
 	import ArrowUpNarrowWide from 'lucide-svelte/icons/arrow-up-narrow-wide';
 	import ArrowDownNarrowWide from 'lucide-svelte/icons/arrow-down-narrow-wide';
 
-	let exercises = $state<Exercise[]>([]);
-	let loading = $state(true);
-
 	let searchQuery = $state('');
-	let activeCategory = $state('all');
+	let activeCategory = $state('');
 	let showCreateForm = $state(false);
 	let sortAsc = $state(true);
 
-	const categoryFilters = [{ value: 'all', label: 'All' }, ...CATEGORIES];
+	const categoryFilters = CATEGORIES;
 
 	let selectedMuscleGroups = $state<string[]>([]);
 
@@ -27,21 +24,13 @@
 		}
 	}
 
-	async function loadExercises() {
-		loading = true;
-		exercises = await pb.collection('exercises').getFullList<Exercise>({ sort: 'name' });
-		loading = false;
-	}
-
-	$effect(() => { loadExercises(); });
-
 	const filtered = $derived(() => {
-		let list = exercises.filter((ex) => {
+		let list = exerciseCache.items.filter((ex) => {
 			const matchesSearch =
 				!searchQuery ||
 				ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				ex.muscle_groups.some((mg) => mg.toLowerCase().includes(searchQuery.toLowerCase()));
-			const matchesCategory = activeCategory === 'all' || ex.category === activeCategory;
+			const matchesCategory = !activeCategory || ex.category === activeCategory;
 			return matchesSearch && matchesCategory;
 		});
 		const dir = sortAsc ? 1 : -1;
@@ -67,7 +56,7 @@
 		form.reset();
 		selectedMuscleGroups = [];
 		showCreateForm = false;
-		await loadExercises();
+		await exerciseCache.invalidate();
 	}
 </script>
 
@@ -219,7 +208,7 @@
 		{#each categoryFilters as cat}
 			<button
 				type="button"
-				onclick={() => (activeCategory = cat.value)}
+				onclick={() => (activeCategory = activeCategory === cat.value ? '' : cat.value)}
 				class="shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors
 					{activeCategory === cat.value
 					? 'bg-primary text-text-on-primary border border-transparent'
@@ -231,7 +220,7 @@
 	</div>
 
 	<!-- Exercise list -->
-	{#if loading}
+	{#if exerciseCache.loading && !exerciseCache.initialized}
 		<div class="space-y-2">
 			{#each Array(6) as _}
 				<div class="h-16 rounded-xl bg-surface-dim animate-pulse"></div>

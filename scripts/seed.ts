@@ -175,6 +175,78 @@ const exercises: ExerciseDef[] = [
 		muscle_groups: ['core'],
 		category: 'core'
 	},
+
+	// PT / Rehab (isolation, low intensity, hip-focused)
+	{
+		name: 'Single Leg Glute Bridge',
+		description: 'Lie on your back, knees bent, feet flat. Drive through one heel to lift hips until body forms a straight line. Squeeze glute hard at top and hold 2–3 sec. Opposite leg either bent (easier) or extended straight (harder).',
+		muscle_groups: ['glutes', 'hamstrings'],
+		category: 'pt'
+	},
+	{
+		name: 'Clamshells',
+		description: 'Side-lying, hips stacked, knees bent ~45°, feet together. Rotate top knee open toward ceiling without pelvis rolling back. Targets glute med and external hip rotators.',
+		muscle_groups: ['glutes', 'abductors'],
+		category: 'pt'
+	},
+	{
+		name: 'Side-Lying Hip Abduction',
+		description: 'Side-lying with top leg straight. Lift leg to ~45° keeping toes pointed slightly down, lower with control. Don\'t let pelvis rock.',
+		muscle_groups: ['glutes', 'abductors'],
+		category: 'pt'
+	},
+	{
+		name: 'Active Straight Leg Raise',
+		description: 'Lie on back, one knee bent and foot flat, other leg straight. Slowly raise straight leg to ~45°, hold 1 sec, lower with control. Strengthens hip flexors through range without hip compression.',
+		muscle_groups: ['hip_flexors'],
+		category: 'pt'
+	},
+	{
+		name: 'Standing Knee Drive',
+		description: 'Stand near wall for balance. Slowly drive one knee up to hip height in a controlled march, hold 1–2 sec at top, then lower. Actively loads the psoas.',
+		muscle_groups: ['hip_flexors'],
+		category: 'pt'
+	},
+
+	// Bodyweight (compound, no equipment)
+	{
+		name: 'Bodyweight Squat',
+		description: 'Feet shoulder-width, toes slightly out. Sit back and down with chest up, knees tracking over toes. Slow controlled descent (3 sec down). Pause briefly at bottom, drive through heels.',
+		muscle_groups: ['quads', 'glutes'],
+		category: 'bodyweight'
+	},
+	{
+		name: 'Reverse Lunge',
+		description: 'Stand tall, step one foot back, lower back knee toward floor. Front shin stays vertical. Drive through front heel to return. Stepping back reduces anterior hip stress — better for labral recovery.',
+		muscle_groups: ['quads', 'glutes', 'hamstrings'],
+		category: 'bodyweight'
+	},
+	{
+		name: 'Bulgarian Split Squat',
+		description: 'Stand in front of a chair/bench, top of one foot on surface behind you. Lower back knee toward floor by bending front leg, torso upright. Drive through front heel. Hits glutes, quads, hamstrings hard even without weight.',
+		muscle_groups: ['quads', 'glutes', 'hamstrings'],
+		category: 'bodyweight'
+	},
+	{
+		name: 'Single Leg Romanian Deadlift',
+		description: 'Stand on one leg with soft knee bend. Hinge at hip, torso forward and free leg back like a seesaw. Lower until hamstring stretch, drive hip forward to stand. Keep back flat. Balance demand makes this challenging without weight.',
+		muscle_groups: ['hamstrings', 'glutes'],
+		category: 'bodyweight'
+	},
+	{
+		name: 'Nordic Curl',
+		description: 'Anchor feet under couch/bed. Kneel upright, slowly lower torso toward floor resisting with hamstrings as long as possible. Use hands to catch and push back up. Start slow — these are hard.',
+		muscle_groups: ['hamstrings'],
+		category: 'bodyweight'
+	},
+
+	// Warmup / Mobility
+	{
+		name: 'Kneeling Hip Flexor Stretch',
+		description: 'Low lunge, one knee on floor. Tuck tailbone under (posterior pelvic tilt) to neutralize lower back — this creates the psoas stretch. Hold and breathe. Post-surgery hip flexors tend to get tight and guarded.',
+		muscle_groups: ['hip_flexors'],
+		category: 'warmup'
+	},
 ];
 
 // ── Workout definitions (formerly "programs") ────────────────────────

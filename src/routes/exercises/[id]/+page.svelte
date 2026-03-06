@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { pb } from '$lib/pocketbase/client';
+	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import type { Exercise, SetData, SessionEntry, Session } from '$lib/pocketbase/types';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
@@ -18,14 +19,14 @@
 	async function loadData(id: string) {
 		loading = true;
 		const [ex, entries] = await Promise.all([
-			pb.collection('exercises').getOne<Exercise>(id),
+			exerciseCache.getById(id) ?? pb.collection('exercises').getOne<Exercise>(id),
 			pb.collection('session_entries').getList<SessionEntry>(1, 10, {
 				filter: `exercise="${id}"`,
 				sort: '-created'
 			}).catch(() => ({ items: [] as SessionEntry[] }))
 		]);
 
-		exercise = ex;
+		exercise = ex as Exercise;
 
 		// Fetch session dates in parallel
 		const sessionIds = [...new Set(entries.items.map((e) => e.session))];
@@ -113,6 +114,7 @@
 			muscle_groups: editMuscleGroups
 		});
 		editing = false;
+		await exerciseCache.invalidate();
 		await loadData($page.params.id!);
 	}
 
@@ -126,6 +128,7 @@
 		await pb.collection('exercises').update(exercise.id, { video_urls: videos });
 		videoUrl = '';
 		showAddVideo = false;
+		await exerciseCache.invalidate();
 		await loadData($page.params.id!);
 	}
 
@@ -134,6 +137,7 @@
 		const videos = [...(exercise.video_urls || [])];
 		videos.splice(index, 1);
 		await pb.collection('exercises').update(exercise.id, { video_urls: videos });
+		await exerciseCache.invalidate();
 		await loadData($page.params.id!);
 	}
 </script>

@@ -1,20 +1,31 @@
 <script lang="ts">
 	import '../app.css';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { beforeNavigate, afterNavigate } from '$app/navigation';
 	import { saveScrollPosition, getScrollPosition } from '$lib/stores/scrollPosition.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
+	import { workoutCache } from '$lib/stores/workoutCache.svelte';
+	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { Play, List, Dumbbell } from 'lucide-svelte';
+	import { CalendarDays, Play, List, Dumbbell } from 'lucide-svelte';
 	let { children } = $props();
 
+	$effect(() => {
+		exerciseCache.init();
+		workoutCache.init();
+		workoutExerciseCache.init();
+	});
+
 	const navItems = [
+		{ href: '/', label: 'Home', icon: CalendarDays },
 		{ href: '/session', label: 'Sessions', icon: Play },
 		{ href: '/workouts', label: 'Workouts', icon: Dumbbell },
 		{ href: '/exercises', label: 'Exercises', icon: List },
 	];
 
 	function isActive(href: string, pathname: string): boolean {
+		if (href === '/') return pathname === '/';
 		return pathname.startsWith(href);
 	}
 
@@ -58,7 +69,7 @@
 
 	afterNavigate(({ type }) => {
 		if (type === 'popstate') {
-			const saved = getScrollPosition($page.url.pathname);
+			const saved = getScrollPosition(page.url.pathname);
 			if (saved !== undefined) {
 				const pos = saved;
 				// Immediately set scroll position
@@ -86,13 +97,13 @@
 
 <!-- Top nav (desktop) -->
 <header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
-	<a href="/session" class="text-xl font-bold text-primary">zFit</a>
+	<a href="/" class="text-xl font-bold text-primary">zFit</a>
 	<nav class="flex gap-1">
 		{#each navItems as item}
 			<a
 				href={item.href}
 				class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
-					{isActive(item.href, $page.url.pathname) ? 'bg-primary text-text-on-primary' : 'text-text-muted hover:bg-surface-hover'}"
+					{isActive(item.href, page.url.pathname) ? 'bg-primary text-text-on-primary' : 'text-text-muted hover:bg-surface-hover'}"
 			>
 				{item.label}
 			</a>
@@ -114,7 +125,7 @@
 				<a
 					href={item.href}
 					class="flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
-						{isActive(item.href, $page.url.pathname) ? 'text-primary' : 'text-text-muted'}"
+						{isActive(item.href, page.url.pathname) ? 'text-primary' : 'text-text-muted'}"
 				>
 					<item.icon class="w-6 h-6 shrink-0" />
 					<span>{item.label}</span>

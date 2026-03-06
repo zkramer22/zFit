@@ -7,7 +7,7 @@ export interface Exercise extends RecordModel {
 	name: string;
 	description: string;
 	muscle_groups: string[];
-	category: 'strength' | 'stability' | 'core' | 'warmup' | 'posterior_chain';
+	category: 'strength' | 'stability' | 'core' | 'warmup' | 'posterior_chain' | 'pt' | 'bodyweight';
 	video_urls: VideoRef[];
 }
 

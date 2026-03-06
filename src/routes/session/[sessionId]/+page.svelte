@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto, beforeNavigate } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
+	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import type { SessionExpanded, SessionEntryExpanded, WorkoutExerciseExpanded, SetData } from '$lib/pocketbase/types';
 	import SessionHeader from '$lib/components/SessionHeader.svelte';
 	import SessionExerciseCard from '$lib/components/SessionExerciseCard.svelte';
@@ -45,13 +46,10 @@
 
 			session = sess;
 
-			// Load workout exercise targets if this session has a workout
+			// Load workout exercise targets from cache
 			let targets: Record<string, WorkoutExerciseExpanded> = {};
 			if (sess.workout) {
-				const wes = await pb.collection('workout_exercises').getFullList<WorkoutExerciseExpanded>({
-					filter: `workout = "${sess.workout}"`,
-					expand: 'exercise'
-				});
+				const wes = workoutExerciseCache.items.filter(we => we.workout === sess.workout);
 				for (const we of wes) {
 					targets[we.exercise] = we;
 				}

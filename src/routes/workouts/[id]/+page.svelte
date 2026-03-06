@@ -2,6 +2,9 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
+	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
+	import { workoutCache } from '$lib/stores/workoutCache.svelte';
+	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import type { Workout, Exercise, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { dragHandleZone } from 'svelte-dnd-action';
@@ -36,6 +39,7 @@
 		try {
 			await pb.collection('workouts').update(workout.id, { tags: editTags });
 			workout.tags = [...editTags];
+			workoutCache.invalidate();
 		} catch (err) {
 			console.error('Failed to save tags:', err);
 		} finally {
@@ -92,17 +96,12 @@
 		loading = true;
 		const id = $page.params.id!;
 		try {
-			const [w, wes, exs] = await Promise.all([
-				pb.collection('workouts').getOne<Workout>(id),
-				pb.collection('workout_exercises').getFullList<WorkoutExerciseExpanded>({
-					filter: `workout = "${id}"`,
-					sort: 'order',
-					expand: 'exercise'
-				}),
-				pb.collection('exercises').getFullList<Exercise>({ sort: 'name' })
-			]);
+			const w = workoutCache.getById(id) ?? await pb.collection('workouts').getOne<Workout>(id);
+			const wes = workoutExerciseCache.items
+				.filter(we => we.workout === id)
+				.sort((a, b) => a.order - b.order);
 			workout = w;
-			allExercises = exs;
+			allExercises = exerciseCache.items;
 			editTags = [...(w.tags || [])];
 			sections = buildSections(wes);
 
@@ -225,6 +224,7 @@
 				}
 			}
 			persistOrder();
+			workoutExerciseCache.invalidate();
 		} catch (err) {
 			console.error('Failed to delete exercise:', err);
 		} finally {
@@ -249,6 +249,7 @@
 				{ expand: 'exercise' }
 			);
 			addedIds = [...addedIds, record.id];
+			workoutExerciseCache.invalidate();
 			openTargetEditor(record);
 
 			let section = sections.find(s => s.key === sectionKey);
@@ -320,6 +321,7 @@
 				}
 			}
 			editingTargetId = null;
+			workoutExerciseCache.invalidate();
 		} catch (err) {
 			console.error('Failed to save target:', err);
 		} finally {
@@ -345,6 +347,8 @@
 					await pb.collection('workout_exercises').delete(we.id);
 				}
 				await pb.collection('workouts').delete(w.id);
+				await workoutCache.invalidate();
+				await workoutExerciseCache.invalidate();
 				await goto('/workouts');
 			}
 		});

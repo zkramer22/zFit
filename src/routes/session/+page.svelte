@@ -2,24 +2,20 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
+	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import type { Workout, SessionExpanded, SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { LoaderCircle, Trash2 } from 'lucide-svelte';
 
-	let allWorkouts = $state<Workout[]>([]);
 	let activeSessions = $state<SessionExpanded[]>([]);
 	let completedSessions = $state<SessionExpanded[]>([]);
+	let initialized = $state(false);
 	let loading = $state(true);
 	let creating = $state(false);
 
 	async function loadData() {
-		loading = true;
-		try {
-			allWorkouts = await pb.collection('workouts').getFullList<Workout>({ sort: 'name' });
-		} catch (err) {
-			console.error('Failed to load workouts:', err);
-		}
+		if (!initialized) loading = true;
 		try {
 			activeSessions = await pb.collection('sessions').getFullList<SessionExpanded>({
 				filter: 'completed != true',
@@ -42,6 +38,7 @@
 			completedSessions = [];
 		} finally {
 			loading = false;
+			initialized = true;
 		}
 	}
 
@@ -179,7 +176,7 @@
 			<p class="text-text-muted text-sm mb-4">Choose a workout or go freeform.</p>
 
 			<div class="grid gap-3">
-				{#each allWorkouts as workout}
+				{#each workoutCache.items as workout}
 					<button
 						type="button"
 						onclick={() => startSession(workout.id)}
