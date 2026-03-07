@@ -1,8 +1,7 @@
 <script lang="ts">
 	import type { EntryState } from '$lib/stores/session.svelte';
 	import type { SetData } from '$lib/pocketbase/types';
-	import { formatTarget } from '$lib/utils/format';
-	import { formatSets } from '$lib/utils/format';
+	import { formatTarget, formatSets, formatSetsSummary } from '$lib/utils/format';
 	import SlideReveal from './SlideReveal.svelte';
 	import SetRow from './SetRow.svelte';
 
@@ -13,6 +12,7 @@
 		countdownSetIndex?: number;
 		ontoggle: () => void;
 		onaddSet: () => void;
+		onduplicateSet: () => void;
 		onupdateSet: (setIndex: number, field: keyof SetData, value: unknown) => void;
 		onremoveSet: (setIndex: number) => void;
 		onsetDone: (setIndex: number) => void;
@@ -24,7 +24,7 @@
 	}
 
 	let {
-		entry, readonly = false, expanded, countdownSetIndex, ontoggle, onaddSet, onupdateSet,
+		entry, readonly = false, expanded, countdownSetIndex, ontoggle, onaddSet, onduplicateSet, onupdateSet,
 		onremoveSet, onsetDone, onsetRpe, ontogglePain, onsetnotes, onstarttimer, onremoveEntry
 	}: Props = $props();
 
@@ -34,7 +34,7 @@
 	}
 
 	const targetSummary = $derived(() => {
-		return formatTarget({
+		const target = formatTarget({
 			target_sets: entry.targetSets,
 			target_reps: entry.targetReps,
 			target_value: entry.targetValue,
@@ -42,6 +42,10 @@
 			target_distance: entry.targetDistance,
 			target_distance_unit: entry.targetDistanceUnit
 		});
+		if (target) return target;
+		// Fallback: compact summary of actual logged sets
+		if (entry.sets.length > 0) return formatSetsSummary(entry.sets);
+		return '';
 	});
 
 	const allCompleted = $derived(() => entry.sets.length > 0 && entry.sets.every(s => s.completed));
@@ -102,7 +106,7 @@
 			</div>
 
 			{#if !readonly}
-				<!-- Remove / Add Set buttons -->
+				<!-- Remove / Duplicate / Add Set buttons -->
 				<div class="flex gap-2">
 					{#if entry.sets.length > 0}
 						<button type="button" onclick={() => onremoveSet(entry.sets.length - 1)}
@@ -111,7 +115,15 @@
 							<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 								<path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
 							</svg>
-							Remove Set
+							Remove
+						</button>
+						<button type="button" onclick={onduplicateSet}
+							class="flex-1 py-1.5 rounded-lg border border-dashed border-border text-xs text-text-muted
+								hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1">
+							<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+							</svg>
+							Duplicate
 						</button>
 					{/if}
 					<button type="button" onclick={onaddSet}
@@ -120,7 +132,7 @@
 						<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 							<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
 						</svg>
-						Add Set
+						Add
 					</button>
 				</div>
 

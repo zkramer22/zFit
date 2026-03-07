@@ -52,6 +52,11 @@ function createSessionStore() {
 			.map(s => ({ name: s, entries: bySection[s] }));
 	});
 
+	const allSections = $derived(() => {
+		const bySection = entriesBySection();
+		return sectionOrder.map(s => ({ name: s, entries: bySection[s] || [] }));
+	});
+
 	const dirtyEntries = $derived(() => entries.filter(e => e.dirty));
 
 	const elapsedMinutes = $derived(() => Math.floor((Date.now() - startTime) / 60000));
@@ -86,6 +91,7 @@ function createSessionStore() {
 		get saving() { return saving; },
 		get entriesBySection() { return entriesBySection; },
 		get orderedSections() { return orderedSections; },
+		get allSections() { return allSections; },
 		get dirtyEntries() { return dirtyEntries; },
 		get elapsedMinutes() { return elapsedMinutes; },
 		get guidedMode() { return guidedMode; },
@@ -173,6 +179,15 @@ function createSessionStore() {
 			entry.dirty = true;
 		},
 
+		duplicateSet(entryId: string) {
+			const entry = entries.find(e => e.id === entryId);
+			if (!entry || entry.sets.length === 0) return;
+
+			const lastSet = entry.sets[entry.sets.length - 1];
+			entry.sets = [...entry.sets, { ...lastSet, completed: false }];
+			entry.dirty = true;
+		},
+
 		updateSet(entryId: string, setIndex: number, field: keyof SetData, value: unknown) {
 			const entry = entries.find(e => e.id === entryId);
 			if (!entry || !entry.sets[setIndex]) return;
@@ -210,6 +225,10 @@ function createSessionStore() {
 			if (!entry) return;
 			entry.notes = notes;
 			entry.dirty = true;
+		},
+
+		addEntry(entry: EntryState) {
+			entries = [...entries, entry];
 		},
 
 		removeEntry(entryId: string) {

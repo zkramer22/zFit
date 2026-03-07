@@ -40,3 +40,37 @@ export function formatSets(sets: SetData[]): string {
 	if (!sets?.length) return 'No sets';
 	return sets.map(formatSetData).join(' / ');
 }
+
+/** Compact summary of actual sets in target-style format, e.g. "3x12BW" or "12/10/8 @ 135 lb" */
+export function formatSetsSummary(sets: SetData[]): string {
+	if (!sets?.length) return '';
+	const unit = sets[0].unit || 'lb';
+	const allReps = sets.map(s => s.reps);
+	const allSameReps = allReps.every(r => r === allReps[0]);
+
+	let repsPart: string;
+	if (allSameReps && allReps[0]) {
+		repsPart = `${sets.length}x${allReps[0]}`;
+	} else if (allReps.some(r => r != null)) {
+		repsPart = allReps.map(r => r ?? '–').join('/');
+	} else {
+		repsPart = `${sets.length}x`;
+	}
+
+	let unitPart: string;
+	if (unit === 'bw') {
+		unitPart = 'BW';
+	} else if (unit === 'band') {
+		unitPart = 'Band';
+	} else if (sets[0].value != null) {
+		unitPart = `@ ${sets[0].value} ${unit}`;
+	} else {
+		unitPart = unit;
+	}
+
+	let result = `${repsPart} ${unitPart}`.trim();
+	if (sets[0].distance != null && sets[0].distance_unit) {
+		result += ` ${sets[0].distance} ${sets[0].distance_unit}`;
+	}
+	return result;
+}

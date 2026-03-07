@@ -11,6 +11,10 @@
 	import { restTimerStore } from '$lib/stores/restTimer.svelte';
 	import { countdownTimerStore } from '$lib/stores/countdownTimer.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
+	import Drawer from '$lib/components/Drawer.svelte';
+	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
+	import type { Exercise } from '$lib/pocketbase/types';
 
 	let loading = $state(true);
 	let session = $state<SessionExpanded | null>(null);
@@ -163,6 +167,65 @@
 	// Flush any pending saves before navigating away
 	beforeNavigate(() => { flushSave(); });
 
+	let addingToSection = $state<string | null>(null);
+	let drawerSearch = $state('');
+
+	function availableExercises(): Exercise[] {
+		const q = drawerSearch.toLowerCase();
+		return exerciseCache.items.filter(ex => {
+			if (!q) return true;
+			return ex.name.toLowerCase().includes(q) ||
+				ex.muscle_groups?.some((mg: string) => mg.toLowerCase().includes(q));
+		}).sort((a, b) => a.name.localeCompare(b.name));
+	}
+
+	function defaultUnit(exercise: Exercise): 'lb' | 'bw' {
+		const bwCategories = ['bodyweight', 'warmup', 'core', 'pt', 'stability'];
+		return bwCategories.includes(exercise.category) ? 'bw' : 'lb';
+	}
+
+	async function addExerciseToSession(section: string, exerciseId: string) {
+		const exercise = exerciseCache.getById(exerciseId);
+		if (!exercise || !session) return;
+
+		const unit = defaultUnit(exercise);
+		const maxOrder = sessionStore.entries.reduce((max, e) => Math.max(max, e.order), 0);
+
+		const newEntry = await pb.collection('session_entries').create({
+			session: session.id,
+			exercise: exerciseId,
+			order: maxOrder + 1,
+			sets: [{ reps: null, value: null, unit, distance: null, distance_unit: null, notes: '', completed: false }],
+			rpe: null,
+			pain_flag: false,
+			notes: ''
+		});
+
+		sessionStore.addEntry({
+			id: newEntry.id,
+			exerciseId,
+			exerciseName: exercise.name,
+			section,
+			order: maxOrder + 1,
+			sets: [{ reps: null, value: null, unit, distance: null, distance_unit: null, notes: '', completed: false }],
+			rpe: null,
+			painFlag: false,
+			notes: '',
+			targetSets: 0,
+			targetReps: '',
+			targetValue: '',
+			targetUnit: unit,
+			targetDistance: '',
+			targetDistanceUnit: null,
+			workoutNotes: '',
+			lastSessionSets: [],
+			dirty: false
+		});
+
+		addingToSection = null;
+		expandedEntry = newEntry.id;
+	}
+
 	function promptRemoveEntry(entry: EntryState) {
 		dialogStore.confirm({
 			title: 'Remove exercise?',
@@ -272,7 +335,7 @@
 	/>
 
 	<div class="p-4 max-w-lg mx-auto space-y-6 pb-24">
-		{#each sessionStore.orderedSections() as section}
+		{#each (readonly ? sessionStore.orderedSections() : sessionStore.allSections()) as section}
 			<div>
 				<h2 class="text-sm font-bold text-text-muted uppercase tracking-wide mb-3">
 					{sectionLabels[section.name] || section.name}
@@ -287,6 +350,7 @@
 							countdownSetIndex={readonly ? undefined : (countdownTimerStore.running && countdownTarget?.entryId === entry.id ? countdownTarget.setIndex : undefined)}
 							ontoggle={() => toggleExpanded(entry.id)}
 							onaddSet={() => sessionStore.addSet(entry.id)}
+						onduplicateSet={() => sessionStore.duplicateSet(entry.id)}
 							onupdateSet={(setIndex, field, value) => sessionStore.updateSet(entry.id, setIndex, field, value)}
 							onremoveSet={(setIndex) => sessionStore.removeSet(entry.id, setIndex)}
 							onsetDone={(setIndex) => handleSetDone(entry.id, setIndex)}
@@ -299,18 +363,50 @@
 						</div>
 					{/each}
 				</div>
+				{#if !readonly}
+					<button type="button" onclick={() => { addingToSection = section.name; drawerSearch = ''; }}
+						class="mt-2 w-full p-2 rounded-lg border border-dashed border-border text-sm text-text-muted hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1">
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+						</svg>
+						Add Exercise
+					</button>
+				{/if}
 			</div>
 		{/each}
-
-		{#if sessionStore.entries.length === 0}
-			<div class="text-center py-12 text-text-muted">
-				<p class="text-lg font-medium">No exercises yet</p>
-				<p class="text-sm mt-1">This is a freeform session — add exercises as you go.</p>
-			</div>
-		{/if}
 	</div>
 
 	{#if !readonly}
 		<RestTimer />
 	{/if}
+
+	<Drawer open={addingToSection !== null} onclose={() => addingToSection = null}>
+		<h2 class="text-lg font-bold mb-3">Add Exercise</h2>
+
+		<div class="relative mb-3">
+			<svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+			</svg>
+			<input type="text" bind:value={drawerSearch} placeholder="Search exercises..."
+				class="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-surface text-sm
+					placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+		</div>
+
+		<div class="space-y-2">
+			{#each availableExercises() as exercise (exercise.id)}
+				<ExerciseListItem
+					{exercise}
+					onselect={() => {
+						if (addingToSection) addExerciseToSession(addingToSection, exercise.id);
+					}}
+				/>
+			{/each}
+
+			{#if availableExercises().length === 0}
+				<div class="text-center py-8 text-text-muted">
+					<p>No exercises found.</p>
+				</div>
+			{/if}
+		</div>
+	</Drawer>
 {/if}

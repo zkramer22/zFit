@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, afterNavigate } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
+	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import type { SessionExpanded, SessionEntryExpanded, SetData } from '$lib/pocketbase/types';
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import CalendarDayWithDots from '$lib/components/CalendarDayWithDots.svelte';
@@ -8,9 +9,10 @@
 	import { formatSets } from '$lib/utils/format';
 	import { today, getLocalTimeZone } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
-	import { ChevronDown, LoaderCircle } from 'lucide-svelte';
+	import { ChevronDown, LoaderCircle, Trash2, Play } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 
+	let activeSessions = $state<SessionExpanded[]>([]);
 	let sessions = $state<SessionExpanded[]>([]);
 	let selectedDate = $state<DateValue | undefined>(today(getLocalTimeZone()));
 	let placeholder = $state<DateValue>(today(getLocalTimeZone()));
@@ -38,9 +40,21 @@
 		return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
 	}
 
+	async function fetchActiveSessions() {
+		try {
+			activeSessions = await pb.collection('sessions').getFullList<SessionExpanded>({
+				filter: 'completed != true',
+				sort: '-date',
+				expand: 'workout'
+			});
+		} catch (err) {
+			console.error('Failed to load active sessions:', err);
+			activeSessions = [];
+		}
+	}
+
 	async function fetchSessions(month: DateValue) {
 		try {
-			// Fetch the full month range (with a few days buffer for display)
 			const startDate = `${month.year}-${String(month.month).padStart(2, '0')}-01`;
 			const endMonth = month.month === 12 ? 1 : month.month + 1;
 			const endYear = month.month === 12 ? month.year + 1 : month.year;
@@ -57,8 +71,34 @@
 		}
 	}
 
+	function promptDeleteSession(sess: SessionExpanded) {
+		dialogStore.confirm({
+			title: 'Delete session?',
+			description: `This will permanently delete your <strong>${sess.expand?.workout?.name || 'freeform'}</strong> session and all its logged data.`,
+			confirmLabel: 'Delete',
+			pendingLabel: 'Deleting session...',
+			confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+			async onConfirm() {
+				const entries = await pb.collection('session_entries').getFullList({
+					filter: `session = "${sess.id}"`
+				});
+				for (const entry of entries) {
+					await pb.collection('session_entries').delete(entry.id);
+				}
+				await pb.collection('sessions').delete(sess.id);
+				activeSessions = activeSessions.filter(s => s.id !== sess.id);
+			}
+		});
+	}
+
 	// Fetch on mount + re-fetch when month changes
 	$effect(() => {
+		fetchSessions(placeholder);
+	});
+
+	// Re-fetch active sessions when navigating to this page
+	afterNavigate(() => {
+		fetchActiveSessions();
 		fetchSessions(placeholder);
 	});
 
@@ -101,7 +141,41 @@
 </svelte:head>
 
 <div class="p-4 max-w-[500px] mx-auto">
-	<h1 class="text-2xl font-bold mb-4">Calendar</h1>
+	<!-- Active session banner -->
+	{#if activeSessions.length > 0}
+		<section class="mb-4">
+			<div class="grid gap-2">
+				{#each activeSessions as sess (sess.id)}
+					<div class="flex items-center gap-2 p-3 rounded-xl border border-primary/40 ring-2 ring-primary/20 bg-surface">
+						<button
+							type="button"
+							onclick={() => goto(`/session/${sess.id}`)}
+							class="flex-1 flex items-center gap-3 text-left min-w-0"
+						>
+							<div class="p-2 rounded-lg bg-primary/10">
+								<Play class="w-4 h-4 text-primary" />
+							</div>
+							<div class="min-w-0">
+								<div class="font-semibold leading-tight">{sess.expand?.workout?.name || 'Freeform Session'}</div>
+								<div class="text-xs text-text-muted mt-0.5">
+									{new Date(sess.date.split(' ')[0] + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+									&middot; In progress
+								</div>
+							</div>
+						</button>
+						<button
+							type="button"
+							onclick={() => promptDeleteSession(sess)}
+							class="p-2 rounded-lg border border-border text-text-muted hover:border-red-400 hover:text-red-500 transition-colors shrink-0"
+							aria-label="Delete session"
+						>
+							<Trash2 class="w-4 h-4" />
+						</button>
+					</div>
+				{/each}
+			</div>
+		</section>
+	{/if}
 
 	<Calendar.Calendar
 		class="w-full rounded-xl border border-border bg-surface p-3 [--cell-size:--spacing(10)] *:w-full"

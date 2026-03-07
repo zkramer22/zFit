@@ -8,7 +8,7 @@
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { CalendarDays, Play, List, Dumbbell, LoaderCircle } from 'lucide-svelte';
+	import { CalendarDays, List, Dumbbell, LoaderCircle } from 'lucide-svelte';
 	let { children } = $props();
 
 	$effect(() => {
@@ -19,7 +19,6 @@
 
 	const navItems = [
 		{ href: '/', label: 'Home', icon: CalendarDays },
-		{ href: '/session', label: 'Sessions', icon: Play },
 		{ href: '/workouts', label: 'Workouts', icon: Dumbbell },
 		{ href: '/exercises', label: 'Exercises', icon: List },
 	];
@@ -67,8 +66,8 @@
 
 	});
 
-	afterNavigate(({ type }) => {
-		if (type === 'popstate') {
+	afterNavigate((nav) => {
+		if (nav.type === 'popstate') {
 			const saved = getScrollPosition(page.url.pathname);
 			if (saved !== undefined) {
 				const pos = saved;

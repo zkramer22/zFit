@@ -24,6 +24,24 @@
 		set.unit === 'bw' ? 'BW' : set.unit === 'band' ? 'Band' : set.unit
 	);
 	const valueStep = $derived(set.unit === 'lb' || set.unit === 'kg' ? 5 : 1);
+
+	const unitOptions: { value: string; label: string }[] = [
+		{ value: 'lb', label: 'lb' },
+		{ value: 'kg', label: 'kg' },
+		{ value: 'sec', label: 'sec' },
+		{ value: 'bw', label: 'BW' },
+		{ value: 'band', label: 'Band' },
+	];
+
+	function cycleUnit() {
+		const idx = unitOptions.findIndex(u => u.value === set.unit);
+		const next = unitOptions[(idx + 1) % unitOptions.length];
+		onupdate('unit', next.value);
+		// Clear value when switching to bw/band
+		if (next.value === 'bw' || next.value === 'band') {
+			onupdate('value', null);
+		}
+	}
 </script>
 
 <div class="py-2 {done ? 'opacity-60' : ''}">
@@ -34,10 +52,10 @@
 		{#if readonly}
 			<!-- Readonly static display -->
 			<span class="flex items-center gap-1.5 text-sm tabular-nums px-2 py-1 -mx-1">
-				<span class="font-medium {set.reps ? 'text-text' : 'text-text-muted'}">{set.reps ?? 0}</span>
-				<span class="text-xs text-text-muted">&times;</span>
+				<span class="font-medium {set.reps ? 'text-text' : 'text-text-muted'}">{set.reps ?? '–'}</span>
 				{#if !valueDisabled}
-					<span class="font-medium {set.value ? 'text-text' : 'text-text-muted'}">{set.value ?? 0}</span>
+					<span class="text-xs text-text-muted">&times;</span>
+					<span class="font-medium {set.value ? 'text-text' : 'text-text-muted'}">{set.value ?? '–'}</span>
 				{/if}
 				<span class="text-xs text-text-muted">{unitLabel}</span>
 			</span>
@@ -66,7 +84,10 @@
 				/>
 			{/if}
 
-			<span class="text-xs text-text-muted shrink-0">{unitLabel}</span>
+			<button type="button" onclick={cycleUnit}
+				class="text-xs font-medium shrink-0 px-1.5 py-0.5 rounded border border-border text-text-muted hover:border-primary hover:text-primary transition-colors"
+				aria-label="Change unit"
+			>{unitLabel}</button>
 
 			<!-- Close edit -->
 			<button type="button" onclick={() => editing = false} class="ml-auto p-1.5 rounded-md border border-border text-text-muted hover:border-primary hover:text-primary transition-colors shrink-0" aria-label="Done editing">
@@ -77,10 +98,10 @@
 		{:else}
 			<!-- Static display — tap to edit -->
 			<button type="button" onclick={() => editing = true} disabled={timerRunning} class="flex items-center gap-1.5 text-sm tabular-nums hover:bg-surface-hover rounded-lg px-2 py-1 -mx-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-				<span class="font-medium {set.reps ? 'text-text' : 'text-text-muted'}">{set.reps ?? 0}</span>
-				<span class="text-xs text-text-muted">&times;</span>
+				<span class="font-medium {set.reps ? 'text-text' : 'text-text-muted'}">{set.reps ?? '–'}</span>
 				{#if !valueDisabled}
-					<span class="font-medium {set.value ? 'text-text' : 'text-text-muted'}">{set.value ?? 0}</span>
+					<span class="text-xs text-text-muted">&times;</span>
+					<span class="font-medium {set.value ? 'text-text' : 'text-text-muted'}">{set.value ?? '–'}</span>
 				{/if}
 				<span class="text-xs text-text-muted">{unitLabel}</span>
 			</button>

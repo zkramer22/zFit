@@ -34,6 +34,9 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
+		// Arrow up/down to increment/decrement
+		if (e.key === 'ArrowUp') { e.preventDefault(); incr(); return; }
+		if (e.key === 'ArrowDown') { e.preventDefault(); decr(); return; }
 		// Allow: backspace, delete, tab, escape, enter, arrows
 		if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
 		// Allow one decimal point
