@@ -10,6 +10,7 @@
 	import { sessionStore, type EntryState } from '$lib/stores/session.svelte';
 	import { restTimerStore } from '$lib/stores/restTimer.svelte';
 	import { countdownTimerStore } from '$lib/stores/countdownTimer.svelte';
+	import { dialogStore } from '$lib/stores/dialog.svelte';
 
 	let loading = $state(true);
 	let session = $state<SessionExpanded | null>(null);
@@ -162,6 +163,20 @@
 	// Flush any pending saves before navigating away
 	beforeNavigate(() => { flushSave(); });
 
+	function promptRemoveEntry(entry: EntryState) {
+		dialogStore.confirm({
+			title: 'Remove exercise?',
+			description: `Remove <strong>${entry.exerciseName}</strong> from this session?`,
+			confirmLabel: 'Remove',
+			pendingLabel: 'Removing...',
+			confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+			async onConfirm() {
+				await pb.collection('session_entries').delete(entry.id);
+				sessionStore.removeEntry(entry.id);
+			}
+		});
+	}
+
 	async function finishSession() {
 		if (!session) return;
 		await pb.collection('sessions').update(session.id, { completed: true });
@@ -279,6 +294,7 @@
 							ontogglePain={() => sessionStore.togglePainFlag(entry.id)}
 							onsetnotes={(notes) => sessionStore.setEntryNotes(entry.id, notes)}
 							onstarttimer={readonly ? undefined : ((setIndex) => handleStartTimer(entry.id, setIndex))}
+							onremoveEntry={readonly ? undefined : () => promptRemoveEntry(entry)}
 						/>
 						</div>
 					{/each}

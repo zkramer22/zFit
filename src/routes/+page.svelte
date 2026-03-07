@@ -1,15 +1,21 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
-	import type { SessionExpanded } from '$lib/pocketbase/types';
+	import type { SessionExpanded, SessionEntryExpanded, SetData } from '$lib/pocketbase/types';
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import CalendarDayWithDots from '$lib/components/CalendarDayWithDots.svelte';
+	import SlideReveal from '$lib/components/SlideReveal.svelte';
+	import { formatSets } from '$lib/utils/format';
 	import { today, getLocalTimeZone } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
+	import { ChevronDown, LoaderCircle } from 'lucide-svelte';
+	import { Button } from '$lib/components/ui/button';
 
 	let sessions = $state<SessionExpanded[]>([]);
-	let selectedDate = $state<DateValue | undefined>(undefined);
+	let selectedDate = $state<DateValue | undefined>(today(getLocalTimeZone()));
 	let placeholder = $state<DateValue>(today(getLocalTimeZone()));
+	let expandedSession = $state<string | null>(null);
+	let sessionEntries = $state<Record<string, SessionEntryExpanded[]>>({});
 
 	// Map of "YYYY-MM-DD" -> session count for dots
 	let sessionsByDate = $derived.by(() => {
@@ -56,6 +62,31 @@
 		fetchSessions(placeholder);
 	});
 
+	async function toggleSession(sessionId: string) {
+		if (expandedSession === sessionId) {
+			expandedSession = null;
+			return;
+		}
+		expandedSession = sessionId;
+		if (!sessionEntries[sessionId]) {
+			try {
+				const entries = await pb.collection('session_entries').getFullList<SessionEntryExpanded>({
+					filter: `session = "${sessionId}"`,
+					sort: 'order',
+					expand: 'exercise'
+				});
+				sessionEntries = { ...sessionEntries, [sessionId]: entries };
+			} catch {
+				// Fallback: fetch all and filter client-side
+				const all = await pb.collection('session_entries').getFullList<SessionEntryExpanded>({
+					sort: 'order',
+					expand: 'exercise'
+				});
+				sessionEntries = { ...sessionEntries, [sessionId]: all.filter(e => e.session === sessionId) };
+			}
+		}
+	}
+
 	function handleValueChange(val: DateValue | DateValue[] | undefined) {
 		if (Array.isArray(val)) {
 			selectedDate = val[0];
@@ -93,31 +124,72 @@
 			<h2 class="text-sm font-bold text-text-muted uppercase tracking-wide mb-3">
 				{new Date(selectedDate.year, selectedDate.month - 1, selectedDate.day).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
 			</h2>
-			{#if selectedSessions.length === 0}
-				<p class="text-text-muted text-sm">No completed sessions on this day.</p>
-			{:else}
+			{#if selectedSessions.length > 0}
 				<div class="grid gap-2">
 					{#each selectedSessions as sess (sess.id)}
-						<button
-							type="button"
-							onclick={() => goto(`/session/${sess.id}`)}
-							class="w-full text-left p-3 rounded-xl border border-border bg-surface hover:bg-surface-hover transition-colors"
-						>
-							<div class="flex items-center justify-between gap-2">
-								<div class="min-w-0">
-									<div class="font-medium leading-tight">{sess.expand?.workout?.name || 'Freeform Session'}</div>
-									<div class="text-xs text-text-muted mt-0.5">
-										{new Date(sess.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+						{@const isOpen = expandedSession === sess.id}
+						<div class="rounded-xl border border-border bg-surface overflow-hidden">
+							<button
+								type="button"
+								onclick={() => toggleSession(sess.id)}
+								class="w-full text-left p-3 hover:bg-surface-hover transition-colors"
+							>
+								<div class="flex items-center justify-between gap-2">
+									<div class="min-w-0">
+										<div class="font-medium leading-tight">{sess.expand?.workout?.name || 'Freeform Session'}</div>
+										<div class="text-xs text-text-muted mt-0.5">
+											{new Date(sess.date.split(' ')[0] + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+										</div>
 									</div>
+									<ChevronDown
+										class="w-4 h-4 text-text-muted shrink-0 transition-transform duration-200 {isOpen ? 'rotate-180' : ''}"
+									/>
 								</div>
-								<svg class="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-									<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-								</svg>
-							</div>
-						</button>
+							</button>
+							<SlideReveal open={isOpen}>
+								<div class="px-3 pb-3 space-y-2">
+									{#if sessionEntries[sess.id]?.length}
+										{#each sessionEntries[sess.id] as entry}
+											<div class="p-2.5 rounded-lg bg-surface-dim">
+												<div class="flex items-center justify-between mb-1">
+													<Button variant="link" size="sm" href="/exercises/{entry.exercise}" class="h-auto p-0 text-sm font-medium text-text no-underline hover:underline">{entry.expand?.exercise?.name || 'Unknown'}</Button>
+													<div class="flex items-center gap-2">
+														{#if entry.rpe}
+															<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">RPE {entry.rpe}</span>
+														{/if}
+														{#if entry.pain_flag}
+															<span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Pain</span>
+														{/if}
+													</div>
+												</div>
+												<div class="text-xs text-text-muted">{formatSets(entry.sets)}</div>
+												{#if entry.notes}
+													<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
+												{/if}
+											</div>
+										{/each}
+									{:else}
+										<div class="flex justify-center py-3">
+											<LoaderCircle class="w-5 h-5 animate-spin text-primary" />
+										</div>
+									{/if}
+								</div>
+							</SlideReveal>
+						</div>
 					{/each}
 				</div>
 			{/if}
+
+			<button
+				type="button"
+				onclick={() => goto(`/session?date=${dateKey(selectedDate!)}`)}
+				class="mt-2 w-full p-2 rounded-lg border border-dashed border-border text-sm text-text-muted hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1"
+			>
+				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+				</svg>
+				Log Session
+			</button>
 		</section>
 	{/if}
 </div>

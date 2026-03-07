@@ -5,6 +5,7 @@
 	import type { Exercise, SetData, SessionEntry, Session } from '$lib/pocketbase/types';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
+	import { dialogStore } from '$lib/stores/dialog.svelte';
 
 	let exercise = $state<Exercise | null>(null);
 	let recentHistory = $state<Array<{
@@ -17,34 +18,35 @@
 	let loading = $state(true);
 
 	async function loadData(id: string) {
-		loading = true;
-		const [ex, entries] = await Promise.all([
-			exerciseCache.getById(id) ?? pb.collection('exercises').getOne<Exercise>(id),
-			pb.collection('session_entries').getList<SessionEntry>(1, 10, {
-				filter: `exercise="${id}"`,
-				sort: '-created'
-			}).catch(() => ({ items: [] as SessionEntry[] }))
-		]);
+		if (!exercise) loading = true;
 
-		exercise = ex as Exercise;
+		exercise = (exerciseCache.getById(id) ?? await pb.collection('exercises').getOne<Exercise>(id)) as Exercise;
 
-		// Fetch session dates in parallel
-		const sessionIds = [...new Set(entries.items.map((e) => e.session))];
-		const sessionResults = await Promise.all(
-			sessionIds.map((sid) => pb.collection('sessions').getOne<Session>(sid).catch(() => null))
-		);
-		const sessions: Record<string, Session> = {};
-		for (let i = 0; i < sessionIds.length; i++) {
-			if (sessionResults[i]) sessions[sessionIds[i]] = sessionResults[i]!;
+		try {
+			const all = await pb.collection('session_entries').getFullList();
+			const entries = all.filter((e: any) => e.exercise === id && e.session) as SessionEntry[];
+
+			// Fetch session dates
+			const sessionIds = [...new Set(entries.map((e) => e.session))];
+			const sessionResults = await Promise.all(
+				sessionIds.map((sid) => pb.collection('sessions').getOne<Session>(sid).catch(() => null))
+			);
+			const sessions: Record<string, Session> = {};
+			for (let i = 0; i < sessionIds.length; i++) {
+				if (sessionResults[i]) sessions[sessionIds[i]] = sessionResults[i]!;
+			}
+
+			recentHistory = entries.map((entry) => ({
+				date: sessions[entry.session]?.date || entry.created,
+				sets: entry.sets,
+				rpe: entry.rpe,
+				painFlag: entry.pain_flag,
+				notes: entry.notes
+			}));
+		} catch (err) {
+			console.error('Failed to load exercise history:', err);
+			recentHistory = [];
 		}
-
-		recentHistory = entries.items.map((entry) => ({
-			date: sessions[entry.session]?.date || entry.created,
-			sets: entry.sets,
-			rpe: entry.rpe,
-			painFlag: entry.pain_flag,
-			notes: entry.notes
-		}));
 
 		loading = false;
 	}
@@ -52,7 +54,7 @@
 	$effect(() => { loadData($page.params.id!); });
 
 	function formatDate(d: string): string {
-		return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
+		return new Date(d).toLocaleDateString('en-US', {
 			month: 'short',
 			day: 'numeric',
 			year: 'numeric'
@@ -132,13 +134,22 @@
 		await loadData($page.params.id!);
 	}
 
-	async function removeVideo(index: number) {
+	function removeVideo(index: number) {
 		if (!exercise) return;
-		const videos = [...(exercise.video_urls || [])];
-		videos.splice(index, 1);
-		await pb.collection('exercises').update(exercise.id, { video_urls: videos });
-		await exerciseCache.invalidate();
-		await loadData($page.params.id!);
+		dialogStore.confirm({
+			title: 'Remove video?',
+			description: 'This video will be removed from the exercise.',
+			confirmLabel: 'Remove',
+			pendingLabel: 'Removing...',
+			confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
+			async onConfirm() {
+				const videos = [...(exercise!.video_urls || [])];
+				videos.splice(index, 1);
+				await pb.collection('exercises').update(exercise!.id, { video_urls: videos });
+				await exerciseCache.invalidate();
+				await loadData($page.params.id!);
+			}
+		});
 	}
 </script>
 

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
+	import { goto, afterNavigate } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
-	import type { Workout, SessionExpanded, SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
+	import type { SessionExpanded, SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { LoaderCircle, Trash2 } from 'lucide-svelte';
@@ -42,9 +42,9 @@
 		}
 	}
 
-	// Re-run when navigating to this page (page.url changes trigger reactivity)
-	$effect(() => {
-		$page.url;
+	// Re-run when navigating to this page (including swipe-back)
+	afterNavigate(() => {
+		creating = false;
 		loadData();
 	});
 
@@ -53,6 +53,7 @@
 			title: 'Delete session?',
 			description: `This will permanently delete your <strong>${sess.expand?.workout?.name || 'freeform'}</strong> session and all its logged data.`,
 			confirmLabel: 'Delete',
+			pendingLabel: 'Deleting session...',
 			confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
 			async onConfirm() {
 				const entries = await pb.collection('session_entries').getFullList({
@@ -69,11 +70,12 @@
 
 	async function startSession(workoutId?: string, programId?: string) {
 		creating = true;
-		const today = new Date().toISOString().split('T')[0];
+		const dateParam = $page.url.searchParams.get('date');
+		const sessionDate = dateParam || new Date().toISOString().split('T')[0];
 		const session = await pb.collection('sessions').create({
 			workout: workoutId || '',
 			program: programId || '',
-			date: today,
+			date: sessionDate,
 			notes: '',
 			completed: false
 		});
@@ -153,7 +155,7 @@
 									{sess.expand?.workout?.name || 'Freeform Session'}
 								</div>
 								<div class="text-xs text-text-muted mt-0.5">
-									{new Date(sess.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+									{new Date(sess.date.split(' ')[0] + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
 								</div>
 							</button>
 							<button
@@ -218,7 +220,7 @@
 								<div class="min-w-0">
 									<div class="font-medium leading-tight">{sess.expand?.workout?.name || 'Freeform Session'}</div>
 									<div class="text-xs text-text-muted mt-0.5">
-										{new Date(sess.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+										{new Date(sess.date.split(' ')[0] + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
 									</div>
 								</div>
 								<svg class="w-4 h-4 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">

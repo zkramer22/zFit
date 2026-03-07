@@ -212,6 +212,10 @@ function createSessionStore() {
 			entry.dirty = true;
 		},
 
+		removeEntry(entryId: string) {
+			entries = entries.filter(e => e.id !== entryId);
+		},
+
 		markClean(entryIds: string[]) {
 			for (const entry of entries) {
 				if (entryIds.includes(entry.id)) {

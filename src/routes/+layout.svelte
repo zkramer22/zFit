@@ -8,7 +8,7 @@
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { CalendarDays, Play, List, Dumbbell } from 'lucide-svelte';
+	import { CalendarDays, Play, List, Dumbbell, LoaderCircle } from 'lucide-svelte';
 	let { children } = $props();
 
 	$effect(() => {
@@ -135,19 +135,28 @@
 	</nav>
 </div>
 
-<AlertDialog.Root open={dialogStore.open} onOpenChange={(open) => { if (!open) dialogStore.close(); }}>
+<AlertDialog.Root open={dialogStore.open} onOpenChange={(open) => { if (!open && !dialogStore.pending) dialogStore.close(); }}>
 	<AlertDialog.Content class="max-w-xs">
-		<AlertDialog.Header>
-			<AlertDialog.Title>{dialogStore.options.title}</AlertDialog.Title>
-			<AlertDialog.Description>
-				{@html dialogStore.options.description}
-			</AlertDialog.Description>
-		</AlertDialog.Header>
-		<AlertDialog.Footer>
-			<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-			<AlertDialog.Action onclick={() => dialogStore.handleConfirm()} class={dialogStore.options.confirmClass}>
-				{dialogStore.options.confirmLabel}
-			</AlertDialog.Action>
-		</AlertDialog.Footer>
+		{#if dialogStore.pending}
+			<AlertDialog.Header>
+				<AlertDialog.Title class="flex items-center gap-2">
+					<LoaderCircle class="w-5 h-5 animate-spin text-primary" />
+					{dialogStore.options.pendingLabel || dialogStore.options.confirmLabel + '...'}
+				</AlertDialog.Title>
+			</AlertDialog.Header>
+		{:else}
+			<AlertDialog.Header>
+				<AlertDialog.Title>{dialogStore.options.title}</AlertDialog.Title>
+				<AlertDialog.Description>
+					{@html dialogStore.options.description}
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
+				<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+				<AlertDialog.Action onclick={() => dialogStore.handleConfirm()} class={dialogStore.options.confirmClass}>
+					{dialogStore.options.confirmLabel}
+				</AlertDialog.Action>
+			</AlertDialog.Footer>
+		{/if}
 	</AlertDialog.Content>
 </AlertDialog.Root>

@@ -19,7 +19,7 @@
 		buttonVariants({ variant: "ghost" }),
 		"relative flex w-full h-(--cell-size) flex-col items-center justify-center gap-0.5 p-0 leading-none font-normal whitespace-nowrap select-none",
 		"[&[data-today]:not([data-selected])]:bg-accent [&[data-today]:not([data-selected])]:text-accent-foreground [&[data-today][data-disabled]]:text-muted-foreground",
-		"data-[selected]:bg-primary dark:data-[selected]:hover:bg-accent/50 data-[selected]:text-primary-foreground",
+		"data-[selected]:bg-primary/15 data-[selected]:border data-[selected]:border-primary/30 dark:data-[selected]:hover:bg-accent/50 data-[selected]:text-primary",
 		"[&[data-outside-month]:not([data-selected])]:text-muted-foreground [&[data-outside-month]:not([data-selected])]:hover:text-accent-foreground",
 		"data-[disabled]:text-muted-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
 		"data-[unavailable]:text-muted-foreground data-[unavailable]:line-through",
