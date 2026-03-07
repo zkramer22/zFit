@@ -23,7 +23,7 @@ export default defineConfig({
 				background_color: '#ffffff',
 				display: 'standalone',
 				scope: '/',
-				start_url: '/session',
+				start_url: '/',
 				icons: [
 					{
 						src: '/icons/icon-192.png',
