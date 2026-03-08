@@ -140,6 +140,7 @@ html {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  overscroll-behavior: none;
 }
 
 /* Allow text selection in inputs and textareas */
