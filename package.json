@@ -4,6 +4,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"scripts": {
+    "deploy": "git push && sh scripts/remote-deploy.sh",
 		"dev": "tsx scripts/dev-check.ts && vite dev --host",
 		"build": "vite build",
 		"preview": "vite preview",
