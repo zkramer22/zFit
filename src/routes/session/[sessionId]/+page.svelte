@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto, beforeNavigate } from '$app/navigation';
-	import { pb } from '$lib/pocketbase/client';
+	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import type { SessionExpanded, SessionEntryExpanded, WorkoutExerciseExpanded, SetData } from '$lib/pocketbase/types';
 	import SessionHeader from '$lib/components/SessionHeader.svelte';
@@ -211,6 +211,7 @@
 		const maxOrder = sessionStore.entries.reduce((max, e) => Math.max(max, e.order), 0);
 
 		const newEntry = await pb.collection('session_entries').create({
+			user: currentUserId(),
 			session: session.id,
 			exercise: exerciseId,
 			order: maxOrder + 1,

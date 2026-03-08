@@ -2,7 +2,7 @@
 	import { page } from '$app/stores';
 	import { goto, replaceState } from '$app/navigation';
 	import { untrack } from 'svelte';
-	import { pb } from '$lib/pocketbase/client';
+	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
@@ -191,6 +191,7 @@
 			}
 			for (const { sectionKey, item } of deletedItems) {
 				await pb.collection('workout_exercises').create({
+					user: currentUserId(),
 					workout: workout.id,
 					exercise: item.exercise || item.expand?.exercise?.id,
 					section: sectionKey,
@@ -287,6 +288,7 @@
 		try {
 			const record = await pb.collection('workout_exercises').create<WorkoutExerciseExpanded>(
 				{
+					user: currentUserId(),
 					workout: workout.id,
 					exercise: exerciseId,
 					section: sectionKey,

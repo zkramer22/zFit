@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { goto, afterNavigate } from '$app/navigation';
-	import { pb } from '$lib/pocketbase/client';
+	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import type { SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -19,6 +19,7 @@
 		const dateParam = $page.url.searchParams.get('date');
 		const sessionDate = dateParam || new Date().toISOString().split('T')[0];
 		const session = await pb.collection('sessions').create({
+			user: currentUserId(),
 			workout: workoutId || '',
 			program: programId || '',
 			date: sessionDate,
@@ -52,6 +53,7 @@
 				}));
 
 				await pb.collection('session_entries').create({
+					user: currentUserId(),
 					session: session.id,
 					exercise: we.exercise,
 					order: we.order,

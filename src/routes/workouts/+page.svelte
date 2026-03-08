@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { pb } from '$lib/pocketbase/client';
+	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import type { Workout, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
@@ -105,6 +105,7 @@
 		if (!name) return;
 
 		const record = await pb.collection('workouts').create({
+			user: currentUserId(),
 			name,
 			description: formData.get('description') || '',
 			tags: formData.getAll('tags')

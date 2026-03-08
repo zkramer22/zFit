@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pb } from '$lib/pocketbase/client';
+	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
@@ -47,6 +47,7 @@
 		if (!name) return;
 
 		await pb.collection('exercises').create({
+			user: currentUserId(),
 			name,
 			category: formData.get('category') || 'strength',
 			description: formData.get('description') || '',

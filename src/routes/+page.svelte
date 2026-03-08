@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto, afterNavigate } from '$app/navigation';
-	import { pb } from '$lib/pocketbase/client';
+	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import type { SessionExpanded, SessionEntryExpanded } from '$lib/pocketbase/types';
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
@@ -176,6 +176,7 @@
 			});
 
 			const workout = await pb.collection('workouts').create({
+				user: currentUserId(),
 				name: 'New Workout',
 				description: '',
 				tags: []
@@ -184,6 +185,7 @@
 			for (const entry of entries) {
 				const firstSet = entry.sets?.[0];
 				await pb.collection('workout_exercises').create({
+					user: currentUserId(),
 					workout: workout.id,
 					exercise: entry.exercise,
 					order: entry.order,

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { pb } from '$lib/pocketbase/client';
+	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import type { Program, ProgramWorkoutExpanded, Workout } from '$lib/pocketbase/types';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
@@ -48,6 +48,7 @@
 		if (!name) return;
 
 		await pb.collection('programs').create({
+			user: currentUserId(),
 			name,
 			description: formData.get('description') || '',
 			active: false
@@ -91,6 +92,7 @@
 		const nextDay = (program?.workouts.length || 0) + 1;
 
 		await pb.collection('program_workouts').create({
+			user: currentUserId(),
 			program: programId,
 			workout: workoutId,
 			day_number: nextDay

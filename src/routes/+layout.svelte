@@ -1,26 +1,46 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
-	import { beforeNavigate, afterNavigate } from '$app/navigation';
+	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
 	import { saveScrollPosition, getScrollPosition } from '$lib/stores/scrollPosition.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { CalendarDays, List, Dumbbell, LoaderCircle } from 'lucide-svelte';
+	import { CalendarDays, List, Dumbbell, Settings, LoaderCircle } from 'lucide-svelte';
 	let { children } = $props();
 
+	// Initialize auth on mount
 	$effect(() => {
-		exerciseCache.init();
-		workoutCache.init();
-		workoutExerciseCache.init();
+		authStore.init();
+	});
+
+	// Auth guard: redirect to login if not authenticated, redirect away from login if authenticated
+	$effect(() => {
+		if (!authStore.loading && !authStore.isAuthenticated && page.url.pathname !== '/login') {
+			goto('/login');
+		}
+		if (!authStore.loading && authStore.isAuthenticated && page.url.pathname === '/login') {
+			goto('/');
+		}
+	});
+
+	// Initialize caches only when authenticated
+	$effect(() => {
+		if (authStore.isAuthenticated) {
+			exerciseCache.init();
+			workoutCache.init();
+			workoutExerciseCache.init();
+		}
 	});
 
 	const navItems = [
 		{ href: '/', label: 'Home', icon: CalendarDays },
 		{ href: '/workouts', label: 'Workouts', icon: Dumbbell },
 		{ href: '/exercises', label: 'Exercises', icon: List },
+		{ href: '/settings', label: 'Settings', icon: Settings },
 	];
 
 	function isActive(href: string, pathname: string): boolean {
@@ -99,49 +119,59 @@
 	ondragstart={(e) => { if ((e.target as HTMLElement)?.closest('a')) e.preventDefault(); }}
 />
 
-<!-- Top nav (desktop) -->
-<header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
-	<a href="/" class="text-xl font-bold text-primary">zFit</a>
-	<nav class="flex gap-1">
-		{#each navItems as item}
-			<a
-				href={item.href}
-				class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
-					{isActive(item.href, page.url.pathname) ? 'bg-primary text-text-on-primary' : 'text-text-muted hover:bg-surface-hover'}"
-			>
-				{item.label}
-			</a>
-		{/each}
-	</nav>
-</header>
-
-<div class="md:contents flex flex-col h-dvh">
-	<!-- Main content -->
-	<main bind:this={mainEl} class="flex-1 overflow-y-auto md:overflow-visible md:pb-4">
-		{@render children()}
-	</main>
-
-	<!-- Bottom nav (mobile) -->
-	<nav class="md:hidden bg-surface border-t border-border shrink-0"
-		style="padding-bottom: env(safe-area-inset-bottom)">
-		<div class="flex items-center h-14">
+{#if authStore.loading}
+	<!-- Auth loading state -->
+	<div class="min-h-dvh flex items-center justify-center">
+		<LoaderCircle class="w-8 h-8 animate-spin text-primary" />
+	</div>
+{:else if authStore.isAuthenticated}
+	<!-- Top nav (desktop) -->
+	<header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
+		<a href="/" class="text-xl font-bold text-primary">zFit</a>
+		<nav class="flex gap-1">
 			{#each navItems as item}
-				{@const active = isActive(item.href, page.url.pathname)}
 				<a
 					href={item.href}
-					class="group flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
-						{active ? 'text-primary' : 'text-text-muted'}"
+					class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+						{isActive(item.href, page.url.pathname) ? 'bg-primary text-text-on-primary' : 'text-text-muted hover:bg-surface-hover'}"
 				>
-					<div class="flex items-center justify-center w-14 h-8 rounded-full transition-colors duration-200
-						{active ? 'bg-primary/12' : 'group-active:bg-primary/8'}">
-						<item.icon class="w-5 h-5 shrink-0" />
-					</div>
-					<span>{item.label}</span>
+					{item.label}
 				</a>
 			{/each}
-		</div>
-	</nav>
-</div>
+		</nav>
+	</header>
+
+	<div class="md:contents flex flex-col h-dvh">
+		<!-- Main content -->
+		<main bind:this={mainEl} class="flex-1 overflow-y-auto md:overflow-visible md:pb-4">
+			{@render children()}
+		</main>
+
+		<!-- Bottom nav (mobile) -->
+		<nav class="md:hidden bg-surface border-t border-border shrink-0"
+			style="padding-bottom: env(safe-area-inset-bottom)">
+			<div class="flex items-center h-14">
+				{#each navItems as item}
+					{@const active = isActive(item.href, page.url.pathname)}
+					<a
+						href={item.href}
+						class="group flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
+							{active ? 'text-primary' : 'text-text-muted'}"
+					>
+						<div class="flex items-center justify-center w-14 h-8 rounded-full transition-colors duration-200
+							{active ? 'bg-primary/12' : 'group-active:bg-primary/8'}">
+							<item.icon class="w-5 h-5 shrink-0" />
+						</div>
+						<span>{item.label}</span>
+					</a>
+				{/each}
+			</div>
+		</nav>
+	</div>
+{:else}
+	<!-- Unauthenticated: render login page only -->
+	{@render children()}
+{/if}
 
 <AlertDialog.Root open={dialogStore.open} onOpenChange={(open) => { if (!open && !dialogStore.pending) dialogStore.close(); }}>
 	<AlertDialog.Content class="max-w-xs">

@@ -3,7 +3,14 @@ import type { RecordModel } from 'pocketbase';
 export type SetUnit = 'lb' | 'kg' | 'sec' | 'bw' | 'band';
 export type DistanceUnit = 'yds' | 'ft' | 'm';
 
+export interface User extends RecordModel {
+	email: string;
+	name: string;
+	avatar: string;
+}
+
 export interface Exercise extends RecordModel {
+	user: string;
 	name: string;
 	description: string;
 	muscle_groups: string[];
@@ -18,12 +25,14 @@ export interface VideoRef {
 }
 
 export interface Workout extends RecordModel {
+	user: string;
 	name: string;
 	description: string;
 	tags: string[];
 }
 
 export interface WorkoutExercise extends RecordModel {
+	user: string;
 	workout: string;
 	exercise: string;
 	order: number;
@@ -38,18 +47,21 @@ export interface WorkoutExercise extends RecordModel {
 }
 
 export interface Program extends RecordModel {
+	user: string;
 	name: string;
 	description: string;
 	active: boolean;
 }
 
 export interface ProgramWorkout extends RecordModel {
+	user: string;
 	program: string;
 	workout: string;
 	day_number: number;
 }
 
 export interface Session extends RecordModel {
+	user: string;
 	workout: string;
 	program: string;
 	date: string;
@@ -68,6 +80,7 @@ export interface SetData {
 }
 
 export interface SessionEntry extends RecordModel {
+	user: string;
 	session: string;
 	exercise: string;
 	order: number;
@@ -78,6 +91,7 @@ export interface SessionEntry extends RecordModel {
 }
 
 export interface Goal extends RecordModel {
+	user: string;
 	exercise: string;
 	metric: 'weight' | 'reps' | 'hold_time' | 'rom';
 	target_value: number;
@@ -86,6 +100,36 @@ export interface Goal extends RecordModel {
 	achieved: boolean;
 	achieved_date: string;
 	notes: string;
+}
+
+export interface Submission extends RecordModel {
+	user: string;
+	type: 'exercise' | 'workout';
+	record_id: string;
+	record_name: string;
+	status: 'pending' | 'approved' | 'rejected';
+	notes: string;
+	reviewer_notes: string;
+}
+
+export interface Feedback extends RecordModel {
+	user: string;
+	type: 'feature' | 'bug';
+	title: string;
+	description: string;
+	status: 'open' | 'in_progress' | 'resolved' | 'wont_fix';
+}
+
+export interface SubmissionExpanded extends Submission {
+	expand?: {
+		user?: User;
+	};
+}
+
+export interface FeedbackExpanded extends Feedback {
+	expand?: {
+		user?: User;
+	};
 }
 
 // Expanded types for when relations are resolved
