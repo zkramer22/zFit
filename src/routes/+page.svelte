@@ -9,8 +9,10 @@
 	import { formatSets } from '$lib/utils/format';
 	import { today, getLocalTimeZone } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
-	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List } from 'lucide-svelte';
+	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List, Dumbbell, Eye } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { workoutCache } from '$lib/stores/workoutCache.svelte';
+	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 
 	let activeSessions = $state<SessionExpanded[]>([]);
 	let sessions = $state<SessionExpanded[]>([]);
@@ -102,6 +104,9 @@
 				}
 				await pb.collection('sessions').delete(sess.id);
 				activeSessions = activeSessions.filter(s => s.id !== sess.id);
+				sessions = sessions.filter(s => s.id !== sess.id);
+				allCompleted = allCompleted.filter(s => s.id !== sess.id);
+				expandedSession = null;
 			}
 		});
 	}
@@ -143,9 +148,9 @@
 
 	function handleValueChange(val: DateValue | DateValue[] | undefined) {
 		if (Array.isArray(val)) {
-			selectedDate = val[0];
+			if (val[0]) selectedDate = val[0];
 		} else {
-			selectedDate = val;
+			if (val) selectedDate = val;
 		}
 	}
 
@@ -157,6 +162,50 @@
 	function formatSessionDate(dateStr: string) {
 		return new Date(dateStr.split(' ')[0] + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 	}
+
+	let creatingWorkout = $state(false);
+
+	async function createWorkoutFromSession(sess: SessionExpanded) {
+		if (creatingWorkout) return;
+		creatingWorkout = true;
+		try {
+			const entries = sessionEntries[sess.id] || await pb.collection('session_entries').getFullList<SessionEntryExpanded>({
+				filter: `session = "${sess.id}"`,
+				sort: 'order',
+				expand: 'exercise'
+			});
+
+			const workout = await pb.collection('workouts').create({
+				name: 'New Workout',
+				description: '',
+				tags: []
+			});
+
+			for (const entry of entries) {
+				const firstSet = entry.sets?.[0];
+				await pb.collection('workout_exercises').create({
+					workout: workout.id,
+					exercise: entry.exercise,
+					order: entry.order,
+					section: 'main',
+					target_sets: entry.sets?.length || 1,
+					target_reps: firstSet?.reps ? String(firstSet.reps) : '',
+					target_value: firstSet?.value ? String(firstSet.value) : '',
+					target_unit: firstSet?.unit || 'lb',
+					target_distance: firstSet?.distance ? String(firstSet.distance) : '',
+					target_distance_unit: firstSet?.distance_unit || null,
+					notes: ''
+				});
+			}
+
+			await Promise.all([workoutCache.invalidate(), workoutExerciseCache.invalidate()]);
+			await goto(`/workouts/${workout.id}?edit=1&fromSession=${sess.id}`);
+		} catch (err) {
+			console.error('Failed to create workout from session:', err);
+		} finally {
+			creatingWorkout = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -164,7 +213,19 @@
 </svelte:head>
 
 <div class="p-4 max-w-[500px] mx-auto">
-	<h1 class="text-2xl font-bold mb-4">Home</h1>
+	<div class="flex items-center justify-between mb-4">
+		<h1 class="text-2xl font-bold">Home</h1>
+		<button
+			type="button"
+			onclick={() => goto('/session')}
+			class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
+			aria-label="New session"
+		>
+			<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+			</svg>
+		</button>
+	</div>
 
 	<!-- Active Sessions -->
 	{#if activeSessions.length > 0}
@@ -301,13 +362,12 @@
 </div>
 
 {#snippet sessionCard(sess: SessionExpanded, isOpen: boolean)}
-	<button
-		type="button"
-		onclick={() => toggleSession(sess.id)}
-		class="w-full text-left border border-border bg-surface overflow-hidden
-			{isOpen ? 'rounded-t-xl' : 'rounded-xl'}"
-	>
-		<div class="p-3">
+	<div class="rounded-xl border border-border bg-surface overflow-hidden">
+		<button
+			type="button"
+			onclick={() => toggleSession(sess.id)}
+			class="w-full text-left p-3"
+		>
 			<div class="flex items-center justify-between gap-2">
 				<div class="min-w-0">
 					<div class="font-medium leading-tight">{sess.expand?.workout?.name || 'Freeform Session'}</div>
@@ -319,39 +379,77 @@
 					class="w-4 h-4 text-text-muted shrink-0 transition-transform duration-200 {isOpen ? 'rotate-180' : ''}"
 				/>
 			</div>
-		</div>
-	</button>
-	{#if isOpen}
-		<div class="rounded-b-xl border border-t-0 border-border bg-surface overflow-hidden -mt-[13px]">
-			<SlideReveal open={isOpen}>
-				<div class="px-3 pb-3 pt-1 space-y-2">
-					{#if sessionEntries[sess.id]?.length}
-						{#each sessionEntries[sess.id] as entry}
-							<div class="p-2.5 rounded-lg bg-surface-dim">
-								<div class="flex items-center justify-between mb-1">
-									<Button variant="link" size="sm" href="/exercises/{entry.exercise}" class="h-auto p-0 text-sm font-medium text-text no-underline hover:underline">{entry.expand?.exercise?.name || 'Unknown'}</Button>
-									<div class="flex items-center gap-2">
-										{#if entry.rpe}
-											<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">RPE {entry.rpe}</span>
-										{/if}
-										{#if entry.pain_flag}
-											<span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Pain</span>
-										{/if}
-									</div>
+		</button>
+		<SlideReveal open={isOpen}>
+			<div class="px-3 pb-3 space-y-2">
+				{#if sess.notes}
+					<p class="text-xs text-text-muted italic">{sess.notes}</p>
+				{/if}
+				{#if sessionEntries[sess.id]?.length}
+					{#each sessionEntries[sess.id] as entry}
+						<div class="p-2.5 rounded-lg bg-surface-dim">
+							<div class="flex items-center justify-between mb-1">
+								<Button variant="link" size="sm" href="/exercises/{entry.exercise}" class="h-auto p-0 text-sm font-medium text-text no-underline hover:underline">{entry.expand?.exercise?.name || 'Unknown'}</Button>
+								<div class="flex items-center gap-2">
+									{#if entry.rpe}
+										<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">RPE {entry.rpe}</span>
+									{/if}
+									{#if entry.pain_flag}
+										<span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Pain</span>
+									{/if}
 								</div>
-								<div class="text-xs text-text-muted">{formatSets(entry.sets)}</div>
-								{#if entry.notes}
-									<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
-								{/if}
 							</div>
-						{/each}
-					{:else}
-						<div class="flex justify-center py-3">
-							<LoaderCircle class="w-5 h-5 animate-spin text-primary" />
+							<div class="text-xs text-text-muted">{formatSets(entry.sets)}</div>
+							{#if entry.notes}
+								<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
+							{/if}
 						</div>
+					{/each}
+					<!-- Actions -->
+					<div class="flex gap-2 mt-1">
+						<button
+							type="button"
+							onclick={(e: MouseEvent) => { e.stopPropagation(); goto(`/session/${sess.id}`); }}
+							class="flex-1 p-2 rounded-lg border border-border text-xs text-text-muted
+								hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1.5"
+						>
+							<Eye class="w-3.5 h-3.5" />
+							View
+						</button>
+						<button
+							type="button"
+							onclick={(e: MouseEvent) => { e.stopPropagation(); promptDeleteSession(sess); }}
+							class="flex-1 p-2 rounded-lg border border-border text-xs text-text-muted
+								hover:border-red-400 hover:text-red-500 transition-colors flex items-center justify-center gap-1.5"
+						>
+							<Trash2 class="w-3.5 h-3.5" />
+							Delete
+						</button>
+					</div>
+					{#if !sess.workout}
+						<button
+							type="button"
+							disabled={creatingWorkout}
+							onclick={(e: MouseEvent) => { e.stopPropagation(); createWorkoutFromSession(sess); }}
+							class="w-full p-2 rounded-lg border border-dashed border-border text-xs text-text-muted
+								hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1.5
+								disabled:opacity-50"
+						>
+							{#if creatingWorkout}
+								<LoaderCircle class="w-3.5 h-3.5 animate-spin" />
+								Creating...
+							{:else}
+								<Dumbbell class="w-3.5 h-3.5" />
+								Create Workout
+							{/if}
+						</button>
 					{/if}
-				</div>
-			</SlideReveal>
-		</div>
-	{/if}
+				{:else if isOpen}
+					<div class="flex justify-center py-3">
+						<LoaderCircle class="w-5 h-5 animate-spin text-primary" />
+					</div>
+				{/if}
+			</div>
+		</SlideReveal>
+	</div>
 {/snippet}

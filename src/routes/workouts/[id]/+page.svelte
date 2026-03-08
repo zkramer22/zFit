@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
+	import { goto, replaceState } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { pb } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
@@ -10,6 +11,7 @@
 	import { dragHandleZone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
+	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import Drawer from '$lib/components/Drawer.svelte';
 	import { WORKOUT_TAGS, SET_UNITS, DISTANCE_UNITS, getLabel } from '$lib/constants';
 	import { formatTarget } from '$lib/utils/format';
@@ -60,9 +62,14 @@
 
 	let editing = $state(false);
 	let saving = $state(false);
+	let fromSessionId: string | null = null;
 
 	// Snapshot for undo — captured when entering edit mode
 	let snapshot: typeof sections | null = $state(null);
+	let nameSnapshot: string | null = $state(null);
+	let descriptionSnapshot: string | null = $state(null);
+	let editName = $state('');
+	let editDescription = $state('');
 	// Track changes during edit session for undo
 	let addedIds: string[] = $state([]);
 	let deletedItems: { sectionKey: string; item: any }[] = $state([]);
@@ -92,9 +99,8 @@
 			.map(s => ({ key: s, label: sectionLabels[s] || s, items: groups[s] }));
 	}
 
-	async function loadWorkout() {
+	async function loadWorkout(id: string) {
 		loading = true;
-		const id = $page.params.id!;
 		try {
 			const w = workoutCache.getById(id) ?? await pb.collection('workouts').getOne<Workout>(id);
 			const wes = workoutExerciseCache.items
@@ -105,10 +111,12 @@
 			editTags = [...(w.tags || [])];
 			sections = buildSections(wes);
 
-			// Auto-enter edit mode if ?edit=1
-			if ($page.url.searchParams.get('edit') === '1') {
+			// Auto-enter edit mode if ?edit=1 (check non-reactively)
+			const params = new URLSearchParams(window.location.search);
+			if (params.get('edit') === '1') {
+				fromSessionId = params.get('fromSession');
 				enterEditMode();
-				history.replaceState({}, '', $page.url.pathname);
+				replaceState(window.location.pathname, {});
 			}
 		} catch (err) {
 			console.error('Failed to load workout:', err);
@@ -117,21 +125,55 @@
 		}
 	}
 
-	$effect(() => { loadWorkout(); });
+	$effect(() => {
+		const id = $page.params.id!;
+		untrack(() => loadWorkout(id));
+	});
 
 	function enterEditMode() {
 		snapshot = sections.map(s => ({ ...s, items: s.items.map(i => ({ ...i })) }));
 		tagsSnapshot = [...editTags];
+		editName = workout?.name || '';
+		nameSnapshot = editName;
+		editDescription = workout?.description || '';
+		descriptionSnapshot = editDescription;
 		addedIds = [];
 		deletedItems = [];
 		editing = true;
 	}
 
-	function exitEditMode() {
+	async function exitEditMode() {
 		if (JSON.stringify(editTags) !== JSON.stringify(workout?.tags || [])) {
 			saveTags();
 		}
+		if (!workout) return;
+		const updates: Record<string, string> = {};
+		if (editName.trim() && editName.trim() !== workout.name) {
+			updates.name = editName.trim();
+		}
+		if (editDescription.trim() !== (workout.description || '')) {
+			updates.description = editDescription.trim();
+		}
+		if (Object.keys(updates).length) {
+			await pb.collection('workouts').update(workout.id, updates);
+			if (updates.name) workout.name = updates.name;
+			if (updates.description !== undefined) workout.description = updates.description;
+			workoutCache.invalidate();
+		}
+		if (fromSessionId) {
+			try {
+				const sess = await pb.collection('sessions').getOne(fromSessionId);
+				const note = `Used to create workout: ${workout.name}`;
+				const newNotes = sess.notes ? `${sess.notes}\n${note}` : note;
+				await pb.collection('sessions').update(fromSessionId, { notes: newNotes });
+			} catch (err) {
+				console.error('Failed to update session notes:', err);
+			}
+			fromSessionId = null;
+		}
 		snapshot = null;
+		nameSnapshot = null;
+		descriptionSnapshot = null;
 		tagsSnapshot = null;
 		addedIds = [];
 		deletedItems = [];
@@ -157,6 +199,8 @@
 			}
 			sections = snapshot.map(s => ({ ...s, items: s.items.map(i => ({ ...i })) }));
 			await persistOrder();
+			if (nameSnapshot !== null) editName = nameSnapshot;
+			if (descriptionSnapshot !== null) editDescription = descriptionSnapshot;
 			if (tagsSnapshot) {
 				editTags = [...tagsSnapshot];
 				if (JSON.stringify(editTags) !== JSON.stringify(workout.tags || [])) {
@@ -168,6 +212,8 @@
 		} finally {
 			saving = false;
 			snapshot = null;
+			nameSnapshot = null;
+			descriptionSnapshot = null;
 			tagsSnapshot = null;
 			addedIds = [];
 			deletedItems = [];
@@ -402,7 +448,17 @@
 						<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
 					</svg>
 				</button>
-				<h1 class="font-bold text-lg leading-tight truncate">{workout.name}</h1>
+				{#if editing}
+					<input
+						type="text"
+						bind:value={editName}
+						class="font-bold text-lg leading-tight truncate bg-transparent border-b border-primary/40 focus:border-primary
+							outline-none min-w-0 w-full"
+						placeholder="Workout name"
+					/>
+				{:else}
+					<h1 class="font-bold text-lg leading-tight truncate">{workout.name}</h1>
+				{/if}
 				{#if saving}
 					<span class="text-xs text-primary animate-pulse shrink-0">Saving...</span>
 				{/if}
@@ -431,7 +487,15 @@
 	</div>
 
 	<div class="p-4 max-w-lg mx-auto">
-		{#if workout.description}
+		{#if editing}
+			<textarea
+				bind:value={editDescription}
+				placeholder="Workout description..."
+				rows="2"
+				class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm resize-none mb-3
+					placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+			></textarea>
+		{:else if workout.description}
 			<p class="text-sm text-text-muted mb-3">{workout.description}</p>
 		{/if}
 
@@ -480,61 +544,61 @@
 											ondelete={() => deleteExercise(section.key, item.id)}
 											oneditTarget={() => openTargetEditor(item)}
 										/>
-										{#if editingTargetId === item.id}
-											<div class="mt-1 p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-2">
-												<!-- Row 1: Sets + Reps + Value -->
-												<div class="flex gap-2">
-													<div class="flex-1 min-w-0">
-														<span class="block text-xs font-medium text-text-muted mb-1">Sets</span>
-														<NumberStepper value={editSets} onchange={(v) => editSets = v} min={1} />
-													</div>
-													<div class="flex-1 min-w-0">
-														<span class="block text-xs font-medium text-text-muted mb-1">Reps</span>
-														<NumberStepper value={editReps} onchange={(v) => editReps = v} min={1} />
-													</div>
-													<div class="flex-1 min-w-0">
-														<span class="block text-xs font-medium text-text-muted mb-1">Value</span>
-														<NumberStepper
-															value={editValue ? Number(editValue) : null}
-															onchange={(v) => editValue = v != null ? String(v) : ''}
-															step={editUnit === 'lb' || editUnit === 'kg' ? 5 : 1}
-															disabled={editUnit === 'bw' || editUnit === 'band'}
-														/>
-													</div>
+										<SlideReveal open={editingTargetId === item.id}>
+										<div class="mt-1 p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-2">
+											<!-- Row 1: Sets + Reps + Value -->
+											<div class="flex gap-2">
+												<div class="flex-1 min-w-0">
+													<span class="block text-xs font-medium text-text-muted mb-1">Sets</span>
+													<NumberStepper value={editSets} onchange={(v) => editSets = v} min={1} />
 												</div>
-												<!-- Row 2: Unit selector -->
-												<div>
-													<span class="block text-xs font-medium text-text-muted mb-1">Unit</span>
-													<SelectButton options={SET_UNITS} value={editUnit} onchange={(v) => editUnit = v as SetUnit} />
+												<div class="flex-1 min-w-0">
+													<span class="block text-xs font-medium text-text-muted mb-1">Reps</span>
+													<NumberStepper value={editReps} onchange={(v) => editReps = v} min={1} />
 												</div>
-												<!-- Row 3: Distance (collapsible) -->
-												{#if showDistanceRow}
-													<div class="flex gap-2 items-end">
-														<div class="flex-1">
-															<span class="block text-xs font-medium text-text-muted mb-1">Distance</span>
-															<NumberStepper
-																value={editDistance ? Number(editDistance) : null}
-																onchange={(v) => editDistance = v != null ? String(v) : ''}
-															/>
-														</div>
-														<div class="flex-1">
-															<span class="block text-xs font-medium text-text-muted mb-1">Dist. Unit</span>
-															<SelectButton options={DISTANCE_UNITS} value={editDistanceUnit || ''} onchange={(v) => editDistanceUnit = v as DistanceUnit} />
-														</div>
-														<button type="button" onclick={() => { showDistanceRow = false; editDistance = ''; editDistanceUnit = null; }} class="p-1.5 rounded-lg text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0 self-end" aria-label="Remove distance">
-															<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-														</button>
-													</div>
-												{:else}
-													<button type="button" onclick={() => { showDistanceRow = true; editDistanceUnit = 'yds'; }} class="text-xs text-primary hover:text-primary-dark transition-colors">+ Add distance</button>
-												{/if}
-												<!-- Row 4: Cancel / Save -->
-												<div class="flex gap-2">
-													<button type="button" onclick={() => editingTargetId = null} class="flex-1 px-3 py-1.5 rounded-lg text-sm text-text-muted hover:bg-surface-hover transition-colors">Cancel</button>
-													<button type="button" onclick={saveTarget} disabled={saving} class="flex-1 px-3 py-1.5 rounded-lg text-sm font-medium text-text-on-primary bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50">Save</button>
+												<div class="flex-1 min-w-0">
+													<span class="block text-xs font-medium text-text-muted mb-1">Value</span>
+													<NumberStepper
+														value={editValue ? Number(editValue) : null}
+														onchange={(v) => editValue = v != null ? String(v) : ''}
+														step={editUnit === 'lb' || editUnit === 'kg' ? 5 : 1}
+														disabled={editUnit === 'bw' || editUnit === 'band'}
+													/>
 												</div>
 											</div>
-										{/if}
+											<!-- Row 2: Unit selector -->
+											<div>
+												<span class="block text-xs font-medium text-text-muted mb-1">Unit</span>
+												<SelectButton options={SET_UNITS} value={editUnit} onchange={(v) => editUnit = v as SetUnit} />
+											</div>
+											<!-- Row 3: Distance (collapsible) -->
+											{#if showDistanceRow}
+												<div class="flex gap-2 items-end">
+													<div class="flex-1">
+														<span class="block text-xs font-medium text-text-muted mb-1">Distance</span>
+														<NumberStepper
+															value={editDistance ? Number(editDistance) : null}
+															onchange={(v) => editDistance = v != null ? String(v) : ''}
+														/>
+													</div>
+													<div class="flex-1">
+														<span class="block text-xs font-medium text-text-muted mb-1">Dist. Unit</span>
+														<SelectButton options={DISTANCE_UNITS} value={editDistanceUnit || ''} onchange={(v) => editDistanceUnit = v as DistanceUnit} />
+													</div>
+													<button type="button" onclick={() => { showDistanceRow = false; editDistance = ''; editDistanceUnit = null; }} class="p-1.5 rounded-lg text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0 self-end" aria-label="Remove distance">
+														<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+													</button>
+												</div>
+											{:else}
+												<button type="button" onclick={() => { showDistanceRow = true; editDistanceUnit = 'yds'; }} class="text-xs text-primary hover:text-primary-dark transition-colors">+ Add distance</button>
+											{/if}
+											<!-- Row 4: Cancel / Save -->
+											<div class="flex gap-2">
+												<button type="button" onclick={() => editingTargetId = null} class="flex-1 px-3 py-1.5 rounded-lg text-sm text-text-muted hover:bg-surface-hover transition-colors">Cancel</button>
+												<button type="button" onclick={saveTarget} disabled={saving} class="flex-1 px-3 py-1.5 rounded-lg text-sm font-medium text-text-on-primary bg-primary hover:bg-primary-dark transition-colors disabled:opacity-50">Save</button>
+											</div>
+										</div>
+									</SlideReveal>
 									{/if}
 								</div>
 							{/each}

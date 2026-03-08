@@ -21,6 +21,8 @@
 	let expandedEntry = $state<string | null>(null);
 	let saved = $state(false);
 	let editingHistory = $state(false);
+	let sessionNotes = $state('');
+	let notesSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const isCompleted = $derived(session?.completed === true);
 	const readonly = $derived(isCompleted && !editingHistory);
@@ -50,6 +52,7 @@
 			]);
 
 			session = sess;
+			sessionNotes = sess.notes || '';
 
 			// Load workout exercise targets from cache
 			let targets: Record<string, WorkoutExerciseExpanded> = {};
@@ -165,7 +168,23 @@
 	});
 
 	// Flush any pending saves before navigating away
-	beforeNavigate(() => { flushSave(); });
+	beforeNavigate(() => {
+		flushSave();
+		if (notesSaveTimer) {
+			clearTimeout(notesSaveTimer);
+			notesSaveTimer = null;
+			if (session) pb.collection('sessions').update(session.id, { notes: sessionNotes });
+		}
+	});
+
+	function handleNotesInput() {
+		if (notesSaveTimer) clearTimeout(notesSaveTimer);
+		notesSaveTimer = setTimeout(async () => {
+			notesSaveTimer = null;
+			if (!session) return;
+			await pb.collection('sessions').update(session.id, { notes: sessionNotes });
+		}, 1000);
+	}
 
 	let addingToSection = $state<string | null>(null);
 	let drawerSearch = $state('');
@@ -243,7 +262,7 @@
 	async function finishSession() {
 		if (!session) return;
 		await pb.collection('sessions').update(session.id, { completed: true });
-		await goto('/session');
+		await goto('/');
 	}
 
 	function handleSetDone(entryId: string, setIndex: number) {
@@ -335,6 +354,18 @@
 	/>
 
 	<div class="p-4 max-w-lg mx-auto space-y-6 pb-24">
+		{#if !readonly}
+			<textarea
+				bind:value={sessionNotes}
+				oninput={handleNotesInput}
+				placeholder="Session notes..."
+				rows="2"
+				class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm resize-none
+					placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+			></textarea>
+		{:else if sessionNotes}
+			<p class="text-sm text-text-muted italic">{sessionNotes}</p>
+		{/if}
 		{#each (readonly ? sessionStore.orderedSections() : sessionStore.allSections()) as section}
 			<div>
 				<h2 class="text-sm font-bold text-text-muted uppercase tracking-wide mb-3">

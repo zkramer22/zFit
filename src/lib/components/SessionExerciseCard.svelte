@@ -66,7 +66,10 @@
 					<div class="text-xs text-text-muted mt-0.5">{targetSummary()}</div>
 				{/if}
 			</div>
-			<div class="shrink-0">
+			<div class="flex items-center gap-2 shrink-0">
+				{#if entry.rpe && !expanded}
+					<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded font-medium">RPE {entry.rpe}</span>
+				{/if}
 				<svg class="w-4 h-4 text-text-muted transition-transform {expanded ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 					<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
 				</svg>

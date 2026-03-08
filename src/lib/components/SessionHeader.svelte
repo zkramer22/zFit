@@ -28,23 +28,30 @@
 
 <div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
 	<div class="flex items-start justify-between max-w-lg mx-auto">
-		<div class="min-w-0">
-			<h1 class="font-bold text-lg leading-tight truncate">{workoutName || 'Freeform Session'}</h1>
-			{#if completed && !editingHistory}
-				<div class="flex items-center gap-1 text-xs mt-0.5">
-					<Check class="w-3 h-3 text-green-600" />
-					<span class="text-green-600">Completed</span>
-				</div>
-			{:else}
-				<div class="flex items-center gap-0.5 text-xs mt-0.5 transition-opacity duration-300 {saving || saved ? 'opacity-100' : 'opacity-0'}">
-					{#if saving}
-						<span class="text-primary animate-pulse">Saving changes...</span>
-					{:else}
+		<div class="flex items-center gap-3 min-w-0">
+			<button type="button" onclick={() => history.back()} class="text-text-muted hover:text-text shrink-0" aria-label="Go back">
+				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+				</svg>
+			</button>
+			<div class="min-w-0">
+				<h1 class="font-bold text-lg leading-tight truncate">{workoutName || 'Freeform Session'}</h1>
+				{#if completed && !editingHistory}
+					<div class="flex items-center gap-1 text-xs mt-0.5">
 						<Check class="w-3 h-3 text-green-600" />
-						<span class="text-green-600">Saved</span>
-					{/if}
-				</div>
-			{/if}
+						<span class="text-green-600">Completed</span>
+					</div>
+				{:else}
+					<div class="flex items-center gap-0.5 text-xs mt-0.5 transition-opacity duration-300 {saving || saved ? 'opacity-100' : 'opacity-0'}">
+						{#if saving}
+							<span class="text-primary animate-pulse">Saving changes...</span>
+						{:else}
+							<Check class="w-3 h-3 text-green-600" />
+							<span class="text-green-600">Saved</span>
+						{/if}
+					</div>
+				{/if}
+			</div>
 		</div>
 		<div class="flex items-center gap-2 shrink-0">
 			{#if completed}
