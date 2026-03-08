@@ -119,11 +119,13 @@
 	ondragstart={(e) => { if ((e.target as HTMLElement)?.closest('a')) e.preventDefault(); }}
 />
 
-{#if authStore.loading}
-	<!-- Auth loading state -->
+{#if authStore.loading && page.url.pathname !== '/login'}
+	<!-- Auth loading state (skip on login page to avoid flash) -->
 	<div class="min-h-dvh flex items-center justify-center">
 		<LoaderCircle class="w-8 h-8 animate-spin text-primary" />
 	</div>
+{:else if authStore.loading && page.url.pathname === '/login'}
+	{@render children()}
 {:else if authStore.isAuthenticated}
 	<!-- Top nav (desktop) -->
 	<header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
