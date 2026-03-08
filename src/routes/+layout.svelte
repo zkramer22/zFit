@@ -94,6 +94,11 @@
 	});
 </script>
 
+<svelte:document
+	oncontextmenu={(e) => { if ((e.target as HTMLElement)?.closest('a, button, nav')) e.preventDefault(); }}
+	ondragstart={(e) => { if ((e.target as HTMLElement)?.closest('a')) e.preventDefault(); }}
+/>
+
 <!-- Top nav (desktop) -->
 <header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
 	<a href="/" class="text-xl font-bold text-primary">zFit</a>
@@ -127,8 +132,8 @@
 					class="group flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
 						{active ? 'text-primary' : 'text-text-muted'}"
 				>
-					<div class="flex items-center justify-center w-14 h-8 rounded-full transition-all duration-200
-						{active ? 'bg-primary/12' : 'group-active:bg-primary/8 group-active:scale-95'}">
+					<div class="flex items-center justify-center w-14 h-8 rounded-full transition-colors duration-200
+						{active ? 'bg-primary/12' : 'group-active:bg-primary/8'}">
 						<item.icon class="w-5 h-5 shrink-0" />
 					</div>
 					<span>{item.label}</span>
