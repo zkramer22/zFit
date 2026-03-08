@@ -154,3 +154,14 @@ body {
   min-height: var(--spacing-touch);
   min-width: var(--spacing-touch);
 }
+
+/* Material-like press effect on all interactive elements */
+button:not(:disabled),
+a[href]:not(nav a) {
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+button:not(:disabled):active,
+a[href]:not(nav a):active {
+  transform: scale(0.97);
+  filter: brightness(0.93);
+}

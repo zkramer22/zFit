@@ -36,7 +36,7 @@
 		onclick={() => countdownTimerStore.reset()}
 		class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50
 			px-5 py-3 rounded-full bg-surface/90 backdrop-blur border border-primary/40 shadow-lg
-			flex items-center gap-3 transition-all active:scale-95
+			flex items-center gap-3 transition-all
 			md:bottom-8"
 	>
 		<!-- Circular progress -->
@@ -63,7 +63,7 @@
 		onclick={() => restTimerStore.reset()}
 		class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50
 			px-5 py-3 rounded-full bg-surface/90 backdrop-blur border border-border shadow-lg
-			flex items-center gap-3 transition-all active:scale-95
+			flex items-center gap-3 transition-all
 			md:bottom-8"
 	>
 		<div class="w-10 h-10 shrink-0 flex items-center justify-center">

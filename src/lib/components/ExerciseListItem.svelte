@@ -94,7 +94,7 @@
 		type="button"
 		onclick={onselect}
 		class="block w-full text-left p-3 rounded-xl border border-border bg-surface hover:bg-surface-hover
-			transition-colors active:scale-[0.99]"
+			transition-colors"
 	>
 		<div class="flex items-start justify-between gap-2">
 			<div class="flex-1 min-w-0">
@@ -115,7 +115,7 @@
 	<a
 		href="/exercises/{exercise.id}"
 		class="block p-3 rounded-xl border border-border bg-surface hover:bg-surface-hover
-			transition-colors active:scale-[0.99]"
+			transition-colors"
 	>
 		<div class="flex items-start justify-between gap-2">
 			<div class="flex-1 min-w-0">

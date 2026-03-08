@@ -27,13 +27,18 @@ export const MUSCLE_GROUPS: LabelValue[] = [
 	{ value: 'abductors', label: 'Abductors' },
 	{ value: 'adductors', label: 'Adductors' },
 	{ value: 'back', label: 'Back' },
+	{ value: 'biceps', label: 'Biceps' },
 	{ value: 'calves', label: 'Calves' },
+	{ value: 'chest', label: 'Chest' },
 	{ value: 'core', label: 'Core' },
+	{ value: 'forearms', label: 'Forearms' },
 	{ value: 'glutes', label: 'Glutes' },
 	{ value: 'hamstrings', label: 'Hamstrings' },
 	{ value: 'hip_flexors', label: 'Hip Flexors' },
+	{ value: 'lats', label: 'Lats' },
 	{ value: 'quads', label: 'Quads' },
-	{ value: 'shoulders', label: 'Shoulders' }
+	{ value: 'shoulders', label: 'Shoulders' },
+	{ value: 'triceps', label: 'Triceps' }
 ];
 
 export const WORKOUT_TAGS: LabelValue[] = [

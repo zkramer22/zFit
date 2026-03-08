@@ -58,7 +58,7 @@
 
 <div class="rounded-xl border transition-colors {expanded ? 'border-primary/40 bg-surface' : allCompleted() ? 'border-green-300 bg-green-50/50' : 'border-border bg-surface'}">
 	<!-- Collapsed header (always visible) -->
-	<button type="button" onclick={ontoggle} class="w-full text-left p-3 active:bg-surface-hover transition-colors rounded-xl">
+	<button type="button" onclick={ontoggle} class="w-full text-left p-3 transition-colors rounded-xl">
 		<div class="flex items-center justify-between gap-2">
 			<div class="flex-1 min-w-0">
 				<div class="font-medium leading-tight">{entry.exerciseName}</div>

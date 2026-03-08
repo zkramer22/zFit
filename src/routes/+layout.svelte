@@ -121,12 +121,16 @@
 		style="padding-bottom: env(safe-area-inset-bottom)">
 		<div class="flex items-center h-14">
 			{#each navItems as item}
+				{@const active = isActive(item.href, page.url.pathname)}
 				<a
 					href={item.href}
-					class="flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
-						{isActive(item.href, page.url.pathname) ? 'text-primary' : 'text-text-muted'}"
+					class="group flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
+						{active ? 'text-primary' : 'text-text-muted'}"
 				>
-					<item.icon class="w-6 h-6 shrink-0" />
+					<div class="flex items-center justify-center w-14 h-8 rounded-full transition-all duration-200
+						{active ? 'bg-primary/12' : 'group-active:bg-primary/8 group-active:scale-95'}">
+						<item.icon class="w-5 h-5 shrink-0" />
+					</div>
 					<span>{item.label}</span>
 				</a>
 			{/each}

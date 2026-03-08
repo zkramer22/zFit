@@ -301,12 +301,13 @@
 </div>
 
 {#snippet sessionCard(sess: SessionExpanded, isOpen: boolean)}
-	<div class="rounded-xl border border-border bg-surface overflow-hidden">
-		<button
-			type="button"
-			onclick={() => toggleSession(sess.id)}
-			class="w-full text-left p-3 hover:bg-surface-hover transition-colors"
-		>
+	<button
+		type="button"
+		onclick={() => toggleSession(sess.id)}
+		class="w-full text-left border border-border bg-surface overflow-hidden
+			{isOpen ? 'rounded-t-xl' : 'rounded-xl'}"
+	>
+		<div class="p-3">
 			<div class="flex items-center justify-between gap-2">
 				<div class="min-w-0">
 					<div class="font-medium leading-tight">{sess.expand?.workout?.name || 'Freeform Session'}</div>
@@ -318,35 +319,39 @@
 					class="w-4 h-4 text-text-muted shrink-0 transition-transform duration-200 {isOpen ? 'rotate-180' : ''}"
 				/>
 			</div>
-		</button>
-		<SlideReveal open={isOpen}>
-			<div class="px-3 pb-3 space-y-2">
-				{#if sessionEntries[sess.id]?.length}
-					{#each sessionEntries[sess.id] as entry}
-						<div class="p-2.5 rounded-lg bg-surface-dim">
-							<div class="flex items-center justify-between mb-1">
-								<Button variant="link" size="sm" href="/exercises/{entry.exercise}" class="h-auto p-0 text-sm font-medium text-text no-underline hover:underline">{entry.expand?.exercise?.name || 'Unknown'}</Button>
-								<div class="flex items-center gap-2">
-									{#if entry.rpe}
-										<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">RPE {entry.rpe}</span>
-									{/if}
-									{#if entry.pain_flag}
-										<span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Pain</span>
-									{/if}
+		</div>
+	</button>
+	{#if isOpen}
+		<div class="rounded-b-xl border border-t-0 border-border bg-surface overflow-hidden -mt-[13px]">
+			<SlideReveal open={isOpen}>
+				<div class="px-3 pb-3 pt-1 space-y-2">
+					{#if sessionEntries[sess.id]?.length}
+						{#each sessionEntries[sess.id] as entry}
+							<div class="p-2.5 rounded-lg bg-surface-dim">
+								<div class="flex items-center justify-between mb-1">
+									<Button variant="link" size="sm" href="/exercises/{entry.exercise}" class="h-auto p-0 text-sm font-medium text-text no-underline hover:underline">{entry.expand?.exercise?.name || 'Unknown'}</Button>
+									<div class="flex items-center gap-2">
+										{#if entry.rpe}
+											<span class="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">RPE {entry.rpe}</span>
+										{/if}
+										{#if entry.pain_flag}
+											<span class="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Pain</span>
+										{/if}
+									</div>
 								</div>
+								<div class="text-xs text-text-muted">{formatSets(entry.sets)}</div>
+								{#if entry.notes}
+									<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
+								{/if}
 							</div>
-							<div class="text-xs text-text-muted">{formatSets(entry.sets)}</div>
-							{#if entry.notes}
-								<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
-							{/if}
+						{/each}
+					{:else}
+						<div class="flex justify-center py-3">
+							<LoaderCircle class="w-5 h-5 animate-spin text-primary" />
 						</div>
-					{/each}
-				{:else}
-					<div class="flex justify-center py-3">
-						<LoaderCircle class="w-5 h-5 animate-spin text-primary" />
-					</div>
-				{/if}
-			</div>
-		</SlideReveal>
-	</div>
+					{/if}
+				</div>
+			</SlideReveal>
+		</div>
+	{/if}
 {/snippet}

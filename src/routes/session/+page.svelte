@@ -87,7 +87,7 @@
 				type="button"
 				onclick={() => startSession(workout.id)}
 				class="w-full text-left p-4 rounded-xl border border-border bg-surface hover:bg-surface-hover
-					transition-colors active:scale-[0.98] touch-target"
+					transition-colors touch-target"
 			>
 				<div class="font-semibold text-lg">{workout.name}</div>
 				{#if workout.description}
@@ -102,7 +102,7 @@
 		type="button"
 		onclick={() => startSession()}
 		class="w-full text-left p-4 mt-3 rounded-xl border border-dashed border-border-strong bg-surface-dim
-			hover:bg-surface-hover transition-colors active:scale-[0.98] touch-target"
+			hover:bg-surface-hover transition-colors touch-target"
 	>
 		<div class="font-semibold text-lg text-text-muted">Freeform Session</div>
 		<div class="text-sm text-text-muted mt-1">Start without a template — add exercises as you go.</div>

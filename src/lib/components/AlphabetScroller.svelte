@@ -106,7 +106,8 @@
 <!-- Alphabet rail -->
 <div
 	bind:this={scrollerEl}
-	class="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center justify-center w-8 select-none touch-none"
+	class="fixed right-0 bottom-16 z-40 flex flex-col items-center justify-end w-8 pb-1 select-none touch-none"
+	style="padding-bottom: calc(env(safe-area-inset-bottom) + 0.25rem)"
 	ontouchstart={onTouchStart}
 	ontouchmove={onTouchMove}
 	ontouchend={onTouchEnd}
