@@ -4,7 +4,7 @@
 	"version": "0.1.0",
 	"type": "module",
 	"scripts": {
-    "deploy": "git push && sh scripts/remote-deploy.sh",
+		"deploy": "git push && sh scripts/remote-deploy.sh",
 		"dev": "tsx scripts/dev-check.ts && vite dev --host",
 		"build": "vite build",
 		"preview": "vite preview",
@@ -15,7 +15,7 @@
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.11.0",
-		"@lucide/svelte": "^0.561.0",
+		"@lucide/svelte": "^0.577.0",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.50.2",
@@ -37,10 +37,13 @@
 		"@tailwindcss/vite": "^4.1.18",
 		"@vite-pwa/sveltekit": "^1.1.0",
 		"dotenv": "^17.3.1",
-		"lucide-svelte": "^0.575.0",
 		"pocketbase": "^0.26.8",
 		"svelte-dnd-action": "^0.9.69",
 		"tailwindcss": "^4.1.18",
 		"tsx": "^4.21.0"
+	},
+	"overrides": {
+		"cookie": "^1.1.1",
+		"serialize-javascript": "^7.0.4"
 	}
 }

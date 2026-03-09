@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import { LoaderCircle } from 'lucide-svelte';
+	import { LoaderCircle } from '@lucide/svelte';
 
 	let mode = $state<'login' | 'register'>('login');
 	let email = $state('');

@@ -3,7 +3,7 @@
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import { LogOut, Shield, MessageSquare, Bug, Lightbulb, Send, LoaderCircle, ChevronRight } from 'lucide-svelte';
+	import { LogOut, Shield, MessageSquare, Bug, Lightbulb, Send, LoaderCircle, ChevronRight } from '@lucide/svelte';
 
 	function handleLogout() {
 		authStore.logout();

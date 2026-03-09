@@ -5,8 +5,8 @@
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import type { Workout, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
 	import { WORKOUT_TAGS, getLabel } from '$lib/constants';
-	import ArrowUpNarrowWide from 'lucide-svelte/icons/arrow-up-narrow-wide';
-	import ArrowDownNarrowWide from 'lucide-svelte/icons/arrow-down-narrow-wide';
+	import ArrowUpNarrowWide from '@lucide/svelte/icons/arrow-up-narrow-wide';
+	import ArrowDownNarrowWide from '@lucide/svelte/icons/arrow-down-narrow-wide';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 

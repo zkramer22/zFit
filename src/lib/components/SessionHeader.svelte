@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/Button.svelte';
 
-	import { Check } from 'lucide-svelte';
+	import { Check } from '@lucide/svelte';
 
 	interface Props {
 		workoutName: string;

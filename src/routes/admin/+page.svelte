@@ -4,7 +4,7 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import type { SubmissionExpanded, FeedbackExpanded, User } from '$lib/pocketbase/types';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import { ChevronLeft, Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from 'lucide-svelte';
+	import { ChevronLeft, Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from '@lucide/svelte';
 
 	let tab = $state<'submissions' | 'feedback' | 'users'>('submissions');
 	let submissions = $state<SubmissionExpanded[]>([]);

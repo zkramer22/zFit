@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils.js';
-	import { Minus, Plus } from 'lucide-svelte';
+	import { Minus, Plus } from '@lucide/svelte';
 
 	interface Props {
 		value: number | null;

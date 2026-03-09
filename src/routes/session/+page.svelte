@@ -5,8 +5,7 @@
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import type { SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { LoaderCircle } from 'lucide-svelte';
-	import { ChevronLeft } from 'lucide-svelte';
+	import { LoaderCircle, ChevronLeft } from '@lucide/svelte';
 
 	let creating = $state(false);
 

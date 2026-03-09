@@ -10,7 +10,7 @@
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { CalendarDays, List, Dumbbell, Settings, LoaderCircle } from 'lucide-svelte';
+	import { CalendarDays, List, Dumbbell, Settings, LoaderCircle } from '@lucide/svelte';
 	let { children } = $props();
 
 	// Initialize auth once on mount

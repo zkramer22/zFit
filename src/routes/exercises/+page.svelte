@@ -4,8 +4,8 @@
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import { CATEGORIES, MUSCLE_GROUPS } from '$lib/constants';
-	import ArrowUpNarrowWide from 'lucide-svelte/icons/arrow-up-narrow-wide';
-	import ArrowDownNarrowWide from 'lucide-svelte/icons/arrow-down-narrow-wide';
+	import ArrowUpNarrowWide from '@lucide/svelte/icons/arrow-up-narrow-wide';
+	import ArrowDownNarrowWide from '@lucide/svelte/icons/arrow-down-narrow-wide';
 	import AlphabetScroller from '$lib/components/AlphabetScroller.svelte';
 
 	let searchQuery = $state('');

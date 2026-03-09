@@ -9,7 +9,7 @@
 	import { formatSets } from '$lib/utils/format';
 	import { today, getLocalTimeZone } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
-	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List, Dumbbell, Eye } from 'lucide-svelte';
+	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List, Dumbbell, Eye } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
