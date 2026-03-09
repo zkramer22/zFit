@@ -18,7 +18,7 @@
 			} else {
 				await authStore.loginWithPassword(email, password);
 			}
-			// Layout effect handles redirect to / once isAuthenticated is true
+			window.location.href = '/';
 		} catch (err: any) {
 			error = err?.response?.message || err?.message || 'Something went wrong';
 			submitting = false;
@@ -30,7 +30,7 @@
 		submitting = true;
 		try {
 			await authStore.loginWithGoogle();
-			// Layout effect handles redirect to / once isAuthenticated is true
+			window.location.href = '/';
 		} catch (err: any) {
 			error = err?.response?.message || err?.message || 'Google sign-in failed';
 			submitting = false;

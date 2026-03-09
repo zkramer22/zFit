@@ -17,13 +17,10 @@
 		authStore.init();
 	});
 
-	// Auth guard: redirect to login if not authenticated, redirect away from login if authenticated
+	// Auth guard: redirect unauthenticated users to login (one-way only)
 	$effect(() => {
 		if (!authStore.loading && !authStore.isAuthenticated && page.url.pathname !== '/login') {
-			goto('/login');
-		}
-		if (!authStore.loading && authStore.isAuthenticated && page.url.pathname === '/login') {
-			goto('/');
+			goto('/login', { replaceState: true, invalidateAll: true });
 		}
 	});
 
