@@ -81,6 +81,13 @@ export function createCacheStore<T extends RecordModel>(config: CacheConfig) {
 			fetchFromServer();
 		},
 
+		reset() {
+			items = [];
+			initialized = false;
+			fetchedAt = 0;
+			try { localStorage.removeItem(storageKey); } catch {}
+		},
+
 		async invalidate() {
 			await fetchFromServer();
 		},

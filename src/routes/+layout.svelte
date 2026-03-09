@@ -28,9 +28,20 @@
 		}
 	});
 
-	// Initialize caches only when authenticated
+	// Reset and initialize caches when user changes
+	let lastCacheUserId = '';
 	$effect(() => {
-		if (authStore.isAuthenticated) {
+		const userId = authStore.userId;
+		const authenticated = authStore.isAuthenticated;
+		if (authenticated) {
+			if (lastCacheUserId && lastCacheUserId !== userId) {
+				untrack(() => {
+					exerciseCache.reset();
+					workoutCache.reset();
+					workoutExerciseCache.reset();
+				});
+			}
+			lastCacheUserId = userId;
 			untrack(() => {
 				exerciseCache.init();
 				workoutCache.init();
