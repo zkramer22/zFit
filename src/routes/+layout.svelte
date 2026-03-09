@@ -2,6 +2,7 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import { goto, beforeNavigate, afterNavigate } from '$app/navigation';
+	import { untrack } from 'svelte';
 	import { saveScrollPosition, getScrollPosition } from '$lib/stores/scrollPosition.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
@@ -12,24 +13,29 @@
 	import { CalendarDays, List, Dumbbell, Settings, LoaderCircle } from 'lucide-svelte';
 	let { children } = $props();
 
-	// Initialize auth on mount
+	// Initialize auth once on mount
 	$effect(() => {
-		authStore.init();
+		untrack(() => authStore.init());
 	});
 
 	// Auth guard: redirect unauthenticated users to login (one-way only)
 	$effect(() => {
-		if (!authStore.loading && !authStore.isAuthenticated && page.url.pathname !== '/login') {
-			goto('/login', { replaceState: true, invalidateAll: true });
+		const loading = authStore.loading;
+		const authenticated = authStore.isAuthenticated;
+		const path = page.url.pathname;
+		if (!loading && !authenticated && path !== '/login') {
+			untrack(() => goto('/login', { replaceState: true }));
 		}
 	});
 
 	// Initialize caches only when authenticated
 	$effect(() => {
 		if (authStore.isAuthenticated) {
-			exerciseCache.init();
-			workoutCache.init();
-			workoutExerciseCache.init();
+			untrack(() => {
+				exerciseCache.init();
+				workoutCache.init();
+				workoutExerciseCache.init();
+			});
 		}
 	});
 
