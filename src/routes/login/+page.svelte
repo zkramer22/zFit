@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { LoaderCircle } from 'lucide-svelte';
 
@@ -18,7 +19,7 @@
 			} else {
 				await authStore.loginWithPassword(email, password);
 			}
-			window.location.href = '/';
+			goto('/', { invalidateAll: true });
 		} catch (err: any) {
 			error = err?.response?.message || err?.message || 'Something went wrong';
 			submitting = false;
@@ -30,7 +31,7 @@
 		submitting = true;
 		try {
 			await authStore.loginWithGoogle();
-			window.location.href = '/';
+			goto('/', { invalidateAll: true });
 		} catch (err: any) {
 			error = err?.response?.message || err?.message || 'Google sign-in failed';
 			submitting = false;
