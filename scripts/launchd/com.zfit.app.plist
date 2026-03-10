@@ -18,7 +18,7 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>ORIGIN</key>
-    <string>https://freshmacs-macbook-pro.tail4ac32b.ts.net:8443</string>
+    <string>https://zfit.ztkweb.com</string>
     <key>NODE_ENV</key>
     <string>production</string>
   </dict>
