@@ -24,7 +24,6 @@
 		try {
 			submissions = await pb.collection('submissions').getFullList<SubmissionExpanded>({
 				sort: '-created',
-				expand: 'user',
 			});
 		} catch (err) {
 			console.error('Failed to load submissions:', err);
@@ -61,6 +60,8 @@
 	async function approveSubmission(sub: SubmissionExpanded) {
 		processing = sub.id;
 		try {
+			let notifLink = '';
+
 			if (sub.type === 'exercise') {
 				const userExercise = await pb.collection('exercises').getOne(sub.record_id);
 
@@ -68,25 +69,37 @@
 					// Merge changes into the existing global exercise
 					const { id, collectionId, collectionName, created, updated, user, ...data } = userExercise;
 					await pb.collection('exercises').update(sub.global_exercise, data);
+					notifLink = `/exercises/${sub.global_exercise}`;
 				} else {
 					// No global origin — create a new global exercise
 					const { id, collectionId, collectionName, created, updated, user, ...data } = userExercise;
-					await pb.collection('exercises').create({ ...data, user: '' });
+					const newGlobal = await pb.collection('exercises').create({ ...data, user: '' });
+					notifLink = `/exercises/${newGlobal.id}`;
 				}
+
+				// Delete the user's fork now that changes are merged
+				try {
+					await pb.collection('exercises').delete(sub.record_id);
+				} catch { /* fork may already be gone */ }
 			} else if (sub.type === 'workout') {
 				const workout = await pb.collection('workouts').getOne(sub.record_id);
 				const { id, collectionId, collectionName, created, updated, user, ...data } = workout;
-				await pb.collection('workouts').create({ ...data, user: '' });
+				const newGlobal = await pb.collection('workouts').create({ ...data, user: '' });
+				notifLink = `/workouts/${newGlobal.id}`;
+
+				try {
+					await pb.collection('workouts').delete(sub.record_id);
+				} catch { /* fork may already be gone */ }
 			}
 
 			await pb.collection('submissions').update(sub.id, { status: 'approved' });
 
-			// Notify the submitting user
+			// Notify the submitting user — link to the global exercise, not the deleted fork
 			await pb.collection('notifications').create({
 				user: sub.user,
 				message: `Your proposed changes to "${sub.record_name}" were approved!`,
 				type: 'submission_approved',
-				link: `/exercises/${sub.record_id}`,
+				link: notifLink,
 				read: false,
 			});
 

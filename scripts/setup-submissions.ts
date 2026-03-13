@@ -102,8 +102,8 @@ async function run() {
 					required: false,
 				},
 			],
-			listRule: 'user = @request.auth.id',
-			viewRule: 'user = @request.auth.id',
+			listRule: 'user = @request.auth.id || @request.auth.id = "lxd00dcz55rt9lh"',
+			viewRule: 'user = @request.auth.id || @request.auth.id = "lxd00dcz55rt9lh"',
 			createRule: '@request.auth.id != ""',
 			updateRule: null, // only superusers can update (approve/reject)
 			deleteRule: 'user = @request.auth.id',
@@ -161,8 +161,8 @@ async function run() {
 					},
 				},
 			],
-			listRule: 'user = @request.auth.id',
-			viewRule: 'user = @request.auth.id',
+			listRule: 'user = @request.auth.id || @request.auth.id = "lxd00dcz55rt9lh"',
+			viewRule: 'user = @request.auth.id || @request.auth.id = "lxd00dcz55rt9lh"',
 			createRule: '@request.auth.id != ""',
 			updateRule: null, // only superusers can update status
 			deleteRule: 'user = @request.auth.id',
@@ -228,6 +228,96 @@ async function run() {
 		} catch (err: any) {
 			console.error('  ✗ notifications —', JSON.stringify(err?.response?.data || err?.response || err?.message, null, 2));
 		}
+	}
+
+	// Update API rules so admin can see all submissions and feedback
+	const ADMIN_ID = 'lxd00dcz55rt9lh';
+	const adminOnlyRule = `@request.auth.id = "${ADMIN_ID}"`;
+	const adminListRule = `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`;
+
+	// Add missing created/updated autodate fields
+	console.log('\n--- Adding created/updated fields ---');
+	for (const name of ['submissions', 'feedback', 'notifications']) {
+		try {
+			const col = await pb.collections.getOne(name);
+			const hasCreated = col.fields?.some((f: any) => f.name === 'created');
+			if (hasCreated) {
+				console.log(`  ⏭ ${name} already has created/updated`);
+				continue;
+			}
+			await pb.collections.update(col.id, {
+				fields: [
+					...col.fields,
+					{
+						name: 'created',
+						type: 'autodate',
+						onCreate: true,
+						onUpdate: false,
+					},
+					{
+						name: 'updated',
+						type: 'autodate',
+						onCreate: true,
+						onUpdate: true,
+					},
+				],
+			});
+			console.log(`  ✓ ${name} — added created/updated fields`);
+		} catch (err: any) {
+			console.error(`  ✗ ${name} — ${err?.message || err}`);
+		}
+	}
+
+	console.log('\n--- Updating collection rules ---');
+	for (const name of ['submissions', 'feedback']) {
+		try {
+			const col = await pb.collections.getOne(name);
+			await pb.collections.update(col.id, {
+				listRule: adminListRule,
+				viewRule: adminListRule,
+				updateRule: adminOnlyRule,
+			});
+			console.log(`  ✓ ${name} — user sees own, admin sees all, admin can update`);
+		} catch (err: any) {
+			console.error(`  ✗ ${name} — ${err?.message || err}`);
+		}
+	}
+
+	// Allow admin to create notifications for users
+	try {
+		const notifCol = await pb.collections.getOne('notifications');
+		await pb.collections.update(notifCol.id, {
+			createRule: adminOnlyRule,
+		});
+		console.log('  ✓ notifications — admin can create records');
+	} catch (err: any) {
+		console.error(`  ✗ notifications — ${err?.message || err}`);
+	}
+
+	// Allow admin to view all user records (needed for expand=user on submissions)
+	try {
+		const usersCol = await pb.collections.getOne('users');
+		await pb.collections.update(usersCol.id, {
+			viewRule: `id = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			listRule: `id = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+		});
+		console.log('  ✓ users — admin can view/list all user records');
+	} catch (err: any) {
+		console.error(`  ✗ users — ${err?.message || err}`);
+	}
+
+	// Allow admin to view all exercises (needed for diff view on submissions)
+	try {
+		const exCol = await pb.collections.getOne('exercises');
+		await pb.collections.update(exCol.id, {
+			viewRule: `user = "" || user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			listRule: `user = "" || user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			updateRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			deleteRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+		});
+		console.log('  ✓ exercises — admin can view/list all exercises');
+	} catch (err: any) {
+		console.error(`  ✗ exercises —`, JSON.stringify(err?.response || err?.message || err));
 	}
 
 	console.log('\nDone!');
