@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import type { SubmissionExpanded, FeedbackExpanded, User } from '$lib/pocketbase/types';
+	import type { SubmissionExpanded, FeedbackExpanded, User, Exercise } from '$lib/pocketbase/types';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { ChevronLeft, Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from '@lucide/svelte';
 
@@ -61,11 +61,18 @@
 	async function approveSubmission(sub: SubmissionExpanded) {
 		processing = sub.id;
 		try {
-			// Clone the record as main branch (user = "")
 			if (sub.type === 'exercise') {
-				const exercise = await pb.collection('exercises').getOne(sub.record_id);
-				const { id, collectionId, collectionName, created, updated, user, ...data } = exercise;
-				await pb.collection('exercises').create({ ...data, user: '' });
+				const userExercise = await pb.collection('exercises').getOne(sub.record_id);
+
+				if (sub.global_exercise) {
+					// Merge changes into the existing global exercise
+					const { id, collectionId, collectionName, created, updated, user, ...data } = userExercise;
+					await pb.collection('exercises').update(sub.global_exercise, data);
+				} else {
+					// No global origin — create a new global exercise
+					const { id, collectionId, collectionName, created, updated, user, ...data } = userExercise;
+					await pb.collection('exercises').create({ ...data, user: '' });
+				}
 			} else if (sub.type === 'workout') {
 				const workout = await pb.collection('workouts').getOne(sub.record_id);
 				const { id, collectionId, collectionName, created, updated, user, ...data } = workout;
@@ -73,6 +80,16 @@
 			}
 
 			await pb.collection('submissions').update(sub.id, { status: 'approved' });
+
+			// Notify the submitting user
+			await pb.collection('notifications').create({
+				user: sub.user,
+				message: `Your proposed changes to "${sub.record_name}" were approved!`,
+				type: 'submission_approved',
+				link: `/exercises/${sub.record_id}`,
+				read: false,
+			});
+
 			await loadSubmissions();
 		} catch (err) {
 			console.error('Failed to approve:', err);
@@ -88,6 +105,16 @@
 				status: 'rejected',
 				reviewer_notes: notes || '',
 			});
+
+			// Notify the submitting user
+			await pb.collection('notifications').create({
+				user: sub.user,
+				message: `Your proposed changes to "${sub.record_name}" were not accepted.${notes ? ' Note: ' + notes : ''}`,
+				type: 'submission_rejected',
+				link: `/exercises/${sub.record_id}`,
+				read: false,
+			});
+
 			await loadSubmissions();
 		} catch (err) {
 			console.error('Failed to reject:', err);
@@ -105,6 +132,33 @@
 			console.error('Failed to update feedback:', err);
 		} finally {
 			processing = null;
+		}
+	}
+
+	// Track expanded submission diffs
+	let expandedDiff = $state<string | null>(null);
+	let diffData = $state<{ global: Exercise | null; user: Exercise | null }>({ global: null, user: null });
+	let diffLoading = $state(false);
+
+	async function toggleDiff(sub: SubmissionExpanded) {
+		if (expandedDiff === sub.id) {
+			expandedDiff = null;
+			return;
+		}
+		expandedDiff = sub.id;
+		diffLoading = true;
+		try {
+			const userExercise = await pb.collection('exercises').getOne<Exercise>(sub.record_id);
+			let globalExercise: Exercise | null = null;
+			if (sub.global_exercise) {
+				globalExercise = await pb.collection('exercises').getOne<Exercise>(sub.global_exercise);
+			}
+			diffData = { global: globalExercise, user: userExercise };
+		} catch (err) {
+			console.error('Failed to load diff:', err);
+			diffData = { global: null, user: null };
+		} finally {
+			diffLoading = false;
 		}
 	}
 
@@ -207,6 +261,80 @@
 
 							{#if sub.notes}
 								<p class="text-sm text-text-muted mt-2">{sub.notes}</p>
+							{/if}
+
+							{#if sub.global_exercise && sub.status === 'pending'}
+								<button
+									type="button"
+									onclick={() => toggleDiff(sub)}
+									class="mt-2 text-xs text-primary hover:text-primary/80 transition-colors"
+								>
+									{expandedDiff === sub.id ? 'Hide Changes' : 'View Changes'}
+								</button>
+
+								{#if expandedDiff === sub.id}
+									<div class="mt-3 rounded-lg border border-border bg-surface-dim p-3 text-xs space-y-2">
+										{#if diffLoading}
+											<div class="flex justify-center py-2">
+												<LoaderCircle class="w-4 h-4 animate-spin text-primary" />
+											</div>
+										{:else if diffData.user}
+											{#if diffData.global}
+												{#if diffData.user.video_urls?.length !== diffData.global.video_urls?.length}
+													<div>
+														<span class="font-medium">Videos:</span>
+														<span class="text-text-muted">{diffData.global.video_urls?.length || 0}</span>
+														<span class="mx-1">&rarr;</span>
+														<span class="text-emerald-600 font-medium">{diffData.user.video_urls?.length || 0}</span>
+													</div>
+												{/if}
+												{#if diffData.user.description !== diffData.global.description}
+													<div>
+														<span class="font-medium">Description:</span>
+														<span class="text-text-muted"> changed</span>
+													</div>
+												{/if}
+												{#if diffData.user.name !== diffData.global.name}
+													<div>
+														<span class="font-medium">Name:</span>
+														<span class="text-text-muted line-through">{diffData.global.name}</span>
+														<span class="mx-1">&rarr;</span>
+														<span class="text-emerald-600">{diffData.user.name}</span>
+													</div>
+												{/if}
+												{#if JSON.stringify(diffData.user.muscle_groups) !== JSON.stringify(diffData.global.muscle_groups)}
+													<div>
+														<span class="font-medium">Muscle groups:</span>
+														<span class="text-text-muted"> changed</span>
+													</div>
+												{/if}
+												{#if diffData.user.category !== diffData.global.category}
+													<div>
+														<span class="font-medium">Category:</span>
+														<span class="text-text-muted">{diffData.global.category}</span>
+														<span class="mx-1">&rarr;</span>
+														<span class="text-emerald-600">{diffData.user.category}</span>
+													</div>
+												{/if}
+												{@const newVideos = (diffData.user.video_urls || []).filter(
+													(v) => !(diffData.global!.video_urls || []).some((g) => g.url === v.url)
+												)}
+												{#if newVideos.length > 0}
+													<div>
+														<span class="font-medium">New videos:</span>
+														{#each newVideos as v}
+															<a href={v.url} target="_blank" rel="noopener noreferrer" class="block text-primary hover:underline truncate mt-0.5">{v.url}</a>
+														{/each}
+													</div>
+												{/if}
+											{:else}
+												<p class="text-text-muted">New exercise (no global original)</p>
+											{/if}
+										{:else}
+											<p class="text-text-muted">Could not load exercise data.</p>
+										{/if}
+									</div>
+								{/if}
 							{/if}
 
 							{#if sub.status === 'pending'}

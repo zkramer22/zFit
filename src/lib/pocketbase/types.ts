@@ -107,9 +107,18 @@ export interface Submission extends RecordModel {
 	type: 'exercise' | 'workout';
 	record_id: string;
 	record_name: string;
+	global_exercise: string;
 	status: 'pending' | 'approved' | 'rejected';
 	notes: string;
 	reviewer_notes: string;
+}
+
+export interface Notification extends RecordModel {
+	user: string;
+	message: string;
+	type: 'submission_approved' | 'submission_rejected';
+	link: string;
+	read: boolean;
 }
 
 export interface Feedback extends RecordModel {

@@ -3,12 +3,48 @@
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import { LogOut, Shield, MessageSquare, Bug, Lightbulb, Send, LoaderCircle, ChevronRight } from '@lucide/svelte';
+	import { LogOut, Shield, MessageSquare, Bug, Lightbulb, Send, LoaderCircle, ChevronRight, Bell } from '@lucide/svelte';
+	import type { Notification } from '$lib/pocketbase/types';
+	import { notificationStore } from '$lib/stores/notifications.svelte';
 
 	function handleLogout() {
 		authStore.logout();
 		goto('/login');
 	}
+
+	// Notifications
+	let notifications = $state<Notification[]>([]);
+	let showNotifications = $state(false);
+
+	async function loadNotifications() {
+		try {
+			notifications = await pb.collection('notifications').getFullList<Notification>({
+				sort: '-created',
+			});
+		} catch { /* ignore if collection doesn't exist yet */ }
+	}
+
+	async function markAsRead(notif: Notification) {
+		if (notif.read) return;
+		try {
+			await pb.collection('notifications').update(notif.id, { read: true });
+			notifications = notifications.map(n => n.id === notif.id ? { ...n, read: true } : n);
+			notificationStore.refresh();
+		} catch { /* ignore */ }
+	}
+
+	async function markAllRead() {
+		const unread = notifications.filter(n => !n.read);
+		await Promise.all(unread.map(n =>
+			pb.collection('notifications').update(n.id, { read: true }).catch(() => {})
+		));
+		notifications = notifications.map(n => ({ ...n, read: true }));
+		notificationStore.refresh();
+	}
+
+	$effect(() => { loadNotifications(); });
+
+	const unreadCount = $derived(notifications.filter(n => !n.read).length);
 
 	// Feedback form
 	let showFeedback = $state(false);
@@ -60,6 +96,55 @@
 				<p class="text-sm text-text-muted">{authStore.user?.email}</p>
 			</div>
 		</div>
+	</section>
+
+	<!-- Notifications -->
+	<section class="rounded-xl border border-border bg-surface mb-4">
+		<button
+			onclick={() => { showNotifications = !showNotifications; }}
+			class="w-full p-4 flex items-center justify-between"
+		>
+			<div class="flex items-center gap-2">
+				<Bell class="w-4 h-4 text-text-muted" />
+				<span class="text-sm font-medium">Notifications</span>
+				{#if unreadCount > 0}
+					<span class="px-1.5 py-0.5 text-xs rounded-full bg-primary text-text-on-primary">{unreadCount}</span>
+				{/if}
+			</div>
+			<ChevronRight class="w-4 h-4 text-text-muted transition-transform {showNotifications ? 'rotate-90' : ''}" />
+		</button>
+
+		{#if showNotifications}
+			<div class="px-4 pb-4 border-t border-border pt-3">
+				{#if notifications.length === 0}
+					<p class="text-sm text-text-muted text-center py-2">No notifications yet.</p>
+				{:else}
+					{#if unreadCount > 0}
+						<button
+							onclick={markAllRead}
+							class="text-xs text-primary hover:text-primary/80 mb-2"
+						>
+							Mark all as read
+						</button>
+					{/if}
+					<div class="space-y-2">
+						{#each notifications as notif}
+							<a
+								href={notif.link || '#'}
+								onclick={() => markAsRead(notif)}
+								class="block p-3 rounded-lg border transition-colors
+									{notif.read ? 'border-border bg-surface-dim text-text-muted' : 'border-primary/30 bg-primary/5 text-text'}"
+							>
+								<p class="text-sm">{notif.message}</p>
+								<p class="text-xs text-text-muted mt-1">
+									{new Date(notif.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+								</p>
+							</a>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
 	</section>
 
 	<!-- Feedback -->

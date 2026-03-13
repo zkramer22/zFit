@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { pb } from '$lib/pocketbase/client';
+	import { goto } from '$app/navigation';
+	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
-	import type { Exercise, SetData, SessionEntry, Session } from '$lib/pocketbase/types';
+	import type { Exercise, SetData, SessionEntry, Session, Submission } from '$lib/pocketbase/types';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import { toastStore } from '$lib/stores/toast.svelte';
 
 	let exercise = $state<Exercise | null>(null);
 	let recentHistory = $state<Array<{
@@ -49,6 +51,7 @@
 		}
 
 		loading = false;
+		detectGlobalOrigin();
 	}
 
 	$effect(() => { loadData($page.params.id!); });
@@ -71,6 +74,74 @@
 	function getYoutubeStart(url: string): string {
 		const match = url.match(/[?&]t=(\d+)s?/);
 		return match ? `&start=${match[1]}` : '';
+	}
+
+	// Track whether this exercise was forked from a global one
+	let globalExerciseId = $state<string | null>(null);
+	let pendingProposal = $state<Submission | null>(null);
+	let proposing = $state(false);
+
+	/** If the exercise is global (no user), clone it as the current user's own copy. */
+	async function forkIfGlobal(): Promise<Exercise> {
+		if (exercise!.user) return exercise!;
+		const originalId = exercise!.id;
+		const { id, collectionId, collectionName, created, updated, ...data } = exercise! as any;
+		const clone = await pb.collection('exercises').create<Exercise>({
+			...data,
+			user: currentUserId()
+		});
+		globalExerciseId = originalId;
+		await exerciseCache.invalidate();
+		// Navigate to the new clone's URL so future edits target the right record
+		await goto(`/exercises/${clone.id}`, { replaceState: true });
+		exercise = clone;
+		return clone;
+	}
+
+	// Detect if this user exercise was forked from a global one by matching name
+	async function detectGlobalOrigin() {
+		if (!exercise || !exercise.user) return;
+		// Check if there's a global exercise with the same name
+		try {
+			const globals = await pb.collection('exercises').getFullList<Exercise>({
+				filter: `user = "" && name = "${exercise.name.replace(/"/g, '\\"')}"`,
+			});
+			if (globals.length > 0) {
+				globalExerciseId = globals[0].id;
+			}
+		} catch { /* ignore */ }
+
+		// Check if there's already a pending proposal for this exercise
+		try {
+			const existing = await pb.collection('submissions').getFullList<Submission>({
+				filter: `user = "${currentUserId()}" && record_id = "${exercise.id}" && status = "pending"`,
+			});
+			pendingProposal = existing.length > 0 ? existing[0] : null;
+		} catch { /* ignore */ }
+	}
+
+	async function proposeChanges() {
+		if (!exercise || !globalExerciseId) return;
+		proposing = true;
+		try {
+			await pb.collection('submissions').create({
+				user: currentUserId(),
+				type: 'exercise',
+				record_id: exercise.id,
+				record_name: exercise.name,
+				global_exercise: globalExerciseId,
+				status: 'pending',
+				notes: '',
+				reviewer_notes: '',
+			});
+			toastStore.success('Changes proposed to the global library!');
+			await detectGlobalOrigin(); // refresh pending state
+		} catch (err: any) {
+			console.error('Failed to propose changes:', err);
+			toastStore.error('Failed to submit proposal. Please try again.');
+		} finally {
+			proposing = false;
+		}
 	}
 
 	let videoUrl = $state('');
@@ -109,15 +180,21 @@
 	async function updateExercise(e: SubmitEvent) {
 		e.preventDefault();
 		if (!exercise) return;
-		await pb.collection('exercises').update(exercise.id, {
-			name: editName.trim(),
-			category: editCategory,
-			description: editDescription,
-			muscle_groups: editMuscleGroups
-		});
-		editing = false;
-		await exerciseCache.invalidate();
-		await loadData($page.params.id!);
+		try {
+			const owned = await forkIfGlobal();
+			await pb.collection('exercises').update(owned.id, {
+				name: editName.trim(),
+				category: editCategory,
+				description: editDescription,
+				muscle_groups: editMuscleGroups
+			});
+			editing = false;
+			await exerciseCache.invalidate();
+			await loadData(owned.id);
+		} catch (err: any) {
+			console.error('Failed to update exercise:', err);
+			toastStore.error('Failed to update exercise. Please try again.');
+		}
 	}
 
 	async function addVideo(e: SubmitEvent) {
@@ -126,12 +203,18 @@
 		const ytMatch = videoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:.*[?&]v=|.*\/))([\w-]+)/);
 		if (!ytMatch) { alert('Please paste a valid YouTube URL'); return; }
 
-		const videos = [...(exercise.video_urls || []), { url: videoUrl, title: '', thumbnail_url: '' }];
-		await pb.collection('exercises').update(exercise.id, { video_urls: videos });
-		videoUrl = '';
-		showAddVideo = false;
-		await exerciseCache.invalidate();
-		await loadData($page.params.id!);
+		try {
+			const owned = await forkIfGlobal();
+			const videos = [...(owned.video_urls || []), { url: videoUrl, title: '', thumbnail_url: '' }];
+			await pb.collection('exercises').update(owned.id, { video_urls: videos });
+			videoUrl = '';
+			showAddVideo = false;
+			await exerciseCache.invalidate();
+			await loadData(owned.id);
+		} catch (err: any) {
+			console.error('Failed to save video:', err);
+			toastStore.error('Failed to save video. Please try again.');
+		}
 	}
 
 	function removeVideo(index: number) {
@@ -143,11 +226,17 @@
 			pendingLabel: 'Removing...',
 			confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
 			async onConfirm() {
-				const videos = [...(exercise!.video_urls || [])];
-				videos.splice(index, 1);
-				await pb.collection('exercises').update(exercise!.id, { video_urls: videos });
-				await exerciseCache.invalidate();
-				await loadData($page.params.id!);
+				try {
+					const owned = await forkIfGlobal();
+					const videos = [...(owned.video_urls || [])];
+					videos.splice(index, 1);
+					await pb.collection('exercises').update(owned.id, { video_urls: videos });
+					await exerciseCache.invalidate();
+					await loadData(owned.id);
+				} catch (err: any) {
+					console.error('Failed to remove video:', err);
+					toastStore.error('Failed to remove video. Please try again.');
+				}
 			}
 		});
 	}
@@ -309,6 +398,31 @@
 				<p class="text-sm text-text-muted">No videos yet. Add one or search YouTube.</p>
 			{/if}
 		</div>
+
+		<!-- Propose changes to global library -->
+		{#if exercise.user && globalExerciseId}
+			<div class="mb-8 p-4 rounded-xl border border-dashed border-primary/30 bg-primary/5">
+				{#if pendingProposal}
+					<div class="flex items-center gap-2 text-sm text-primary">
+						<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+						<span>Your changes are pending review.</span>
+					</div>
+				{:else}
+					<p class="text-sm text-text-muted mb-3">You've customized this exercise. Want to propose your changes for the global library?</p>
+					<button
+						type="button"
+						onclick={proposeChanges}
+						disabled={proposing}
+						class="w-full py-2.5 rounded-lg text-sm font-medium bg-primary text-text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+					>
+						{#if proposing}
+							<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+						{/if}
+						Propose to Global Library
+					</button>
+				{/if}
+			</div>
+		{/if}
 
 		<!-- Recent History -->
 		<div>

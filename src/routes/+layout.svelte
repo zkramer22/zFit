@@ -5,7 +5,9 @@
 	import { untrack } from 'svelte';
 	import { saveScrollPosition, getScrollPosition } from '$lib/stores/scrollPosition.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import { toastStore } from '$lib/stores/toast.svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
+	import { notificationStore } from '$lib/stores/notifications.svelte';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
@@ -46,6 +48,7 @@
 				exerciseCache.init();
 				workoutCache.init();
 				workoutExerciseCache.init();
+				notificationStore.refresh();
 			});
 		}
 	});
@@ -148,10 +151,13 @@
 			{#each navItems as item}
 				<a
 					href={item.href}
-					class="px-4 py-2 rounded-lg text-sm font-medium transition-colors
+					class="relative px-4 py-2 rounded-lg text-sm font-medium transition-colors
 						{isActive(item.href, page.url.pathname) ? 'bg-primary text-text-on-primary' : 'text-text-muted hover:bg-surface-hover'}"
 				>
 					{item.label}
+					{#if item.href === '/settings' && notificationStore.unreadCount > 0}
+						<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-danger"></span>
+					{/if}
 				</a>
 			{/each}
 		</nav>
@@ -174,9 +180,12 @@
 						class="group flex-1 flex flex-col items-center justify-center gap-0.5 h-14 text-xs font-medium transition-colors
 							{active ? 'text-primary' : 'text-text-muted'}"
 					>
-						<div class="flex items-center justify-center w-14 h-8 rounded-full transition-colors duration-200
+						<div class="relative flex items-center justify-center w-14 h-8 rounded-full transition-colors duration-200
 							{active ? 'bg-primary/12' : 'group-active:bg-primary/8'}">
 							<item.icon class="w-5 h-5 shrink-0" />
+							{#if item.href === '/settings' && notificationStore.unreadCount > 0}
+								<span class="absolute top-0 right-2 w-2 h-2 rounded-full bg-primary"></span>
+							{/if}
 						</div>
 						<span>{item.label}</span>
 					</a>
@@ -187,6 +196,22 @@
 {:else}
 	<!-- Unauthenticated: render login page only -->
 	{@render children()}
+{/if}
+
+<!-- Toasts -->
+{#if toastStore.toasts.length}
+	<div class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[calc(100%-2rem)] max-w-sm pointer-events-none">
+		{#each toastStore.toasts as toast (toast.id)}
+			<button
+				type="button"
+				onclick={() => toastStore.dismiss(toast.id)}
+				class="pointer-events-auto w-full px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-left transition-all
+					{toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'}"
+			>
+				{toast.message}
+			</button>
+		{/each}
+	</div>
 {/if}
 
 <AlertDialog.Root open={dialogStore.open} onOpenChange={(open) => { if (!open && !dialogStore.pending) dialogStore.close(); }}>
