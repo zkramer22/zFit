@@ -24,6 +24,7 @@
 		try {
 			submissions = await pb.collection('submissions').getFullList<SubmissionExpanded>({
 				sort: '-created',
+				expand: 'user',
 			});
 		} catch (err) {
 			console.error('Failed to load submissions:', err);
