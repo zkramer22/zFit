@@ -16,103 +16,90 @@ if (!POCKETBASE_URL || !email || !password) {
 const pb = new PocketBase(POCKETBASE_URL);
 pb.autoCancellation(false);
 
+const ADMIN_ID = 'lxd00dcz55rt9lh';
+
 async function run() {
 	console.log(`Connecting to PocketBase at ${POCKETBASE_URL}...`);
 	await pb.collection('_superusers').authWithPassword(email, password);
 	console.log('Authenticated as superuser.\n');
 
-	// Create submissions collection
-	console.log('--- Creating submissions collection ---');
+	const exercisesCol = await pb.collections.getOne('exercises');
+
+	// ── Create user_exercises collection ──
+	console.log('--- Creating user_exercises collection ---');
+	let userExColId: string;
 	try {
-		const existing = await pb.collections.getOne('submissions');
-		const hasGlobalExercise = existing.fields?.some((f: any) => f.name === 'global_exercise');
-		if (hasGlobalExercise) {
-			console.log('  ⏭ submissions already exists (with global_exercise field)');
-		} else {
-			// Add the global_exercise field to existing collection
-			await pb.collections.update(existing.id, {
-				fields: [
-					...existing.fields,
-					{
-						name: 'global_exercise',
-						type: 'text',
-						required: false,
-					},
-				],
-			});
-			console.log('  ✓ submissions — added global_exercise field');
-		}
+		const existing = await pb.collections.getOne('user_exercises');
+		userExColId = existing.id;
+		console.log('  ⏭ user_exercises already exists');
+		await pb.collections.update(existing.id, {
+			fields: [
+				{ name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: false, maxSelect: 1, minSelect: 1 },
+				{ name: 'exercise', type: 'relation', required: true, collectionId: exercisesCol.id, cascadeDelete: false, maxSelect: 1, minSelect: 1 },
+				{ name: 'description', type: 'text', required: false },
+				{ name: 'video_urls', type: 'json', required: false },
+				{ name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+				{ name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
+			],
+			listRule: `user = @request.auth.id`,
+			viewRule: `user = @request.auth.id`,
+			createRule: `@request.auth.id != ""`,
+			updateRule: `user = @request.auth.id`,
+			deleteRule: `user = @request.auth.id`,
+		});
+		console.log('  ✓ user_exercises — updated fields and rules');
 	} catch {
-		await pb.collections.create({
-			name: 'submissions',
+		const created = await pb.collections.create({
+			name: 'user_exercises',
 			type: 'base',
 			fields: [
-				{
-					name: 'user',
-					type: 'relation',
-					required: true,
-					options: {
-						collectionId: '_pb_users_auth_',
-						cascadeDelete: false,
-						maxSelect: 1,
-						minSelect: 1,
-					},
-				},
-				{
-					name: 'type',
-					type: 'select',
-					required: true,
-					options: {
-						values: ['exercise', 'workout'],
-						maxSelect: 1,
-					},
-				},
-				{
-					name: 'record_id',
-					type: 'text',
-					required: true,
-				},
-				{
-					name: 'record_name',
-					type: 'text',
-					required: false,
-				},
-				{
-					name: 'global_exercise',
-					type: 'text',
-					required: false,
-				},
-				{
-					name: 'status',
-					type: 'select',
-					required: true,
-					options: {
-						values: ['pending', 'approved', 'rejected'],
-						maxSelect: 1,
-					},
-				},
-				{
-					name: 'notes',
-					type: 'text',
-					required: false,
-				},
-				{
-					name: 'reviewer_notes',
-					type: 'text',
-					required: false,
-				},
+				{ name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: false, maxSelect: 1, minSelect: 1 },
+				{ name: 'exercise', type: 'relation', required: true, collectionId: exercisesCol.id, cascadeDelete: false, maxSelect: 1, minSelect: 1 },
+				{ name: 'description', type: 'text', required: false },
+				{ name: 'video_urls', type: 'json', required: false },
+				{ name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+				{ name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
 			],
-			listRule: 'user = @request.auth.id || @request.auth.id = "lxd00dcz55rt9lh"',
-			viewRule: 'user = @request.auth.id || @request.auth.id = "lxd00dcz55rt9lh"',
-			createRule: '@request.auth.id != ""',
-			updateRule: null, // only superusers can update (approve/reject)
-			deleteRule: 'user = @request.auth.id',
+			listRule: `user = @request.auth.id`,
+			viewRule: `user = @request.auth.id`,
+			createRule: `@request.auth.id != ""`,
+			updateRule: `user = @request.auth.id`,
+			deleteRule: `user = @request.auth.id`,
 		});
-		console.log('  ✓ submissions created');
+		userExColId = created.id;
+		console.log('  ✓ user_exercises created');
 	}
 
-	// Create feedback collection
-	console.log('--- Creating feedback collection ---');
+	// ── Update submissions collection ──
+	console.log('\n--- Updating submissions collection ---');
+	try {
+		const existing = await pb.collections.getOne('submissions');
+		await pb.collections.update(existing.id, {
+			fields: [
+				{ name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: false, maxSelect: 1, minSelect: 1 },
+				{ name: 'exercise', type: 'relation', required: true, collectionId: exercisesCol.id, cascadeDelete: false, maxSelect: 1, minSelect: 1 },
+				{ name: 'user_exercise', type: 'relation', required: false, collectionId: userExColId, cascadeDelete: false, maxSelect: 1 },
+				{ name: 'record_name', type: 'text', required: false },
+				{ name: 'diff', type: 'json', required: false },
+				{ name: 'status', type: 'select', required: true, values: ['pending', 'approved', 'rejected'], maxSelect: 1 },
+				{ name: 'notes', type: 'text', required: false },
+				{ name: 'reviewer_notes', type: 'text', required: false },
+				{ name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+				{ name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
+			],
+			listRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			viewRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			createRule: `@request.auth.id != ""`,
+			updateRule: `@request.auth.id = "${ADMIN_ID}"`,
+			deleteRule: `user = @request.auth.id`,
+		});
+		console.log('  ✓ submissions — updated (removed type, record_id, global_exercise; added exercise, user_exercise, diff)');
+	} catch (err: any) {
+		console.error('  ✗ submissions —', JSON.stringify(err?.response?.data || err?.response || err?.message, null, 2));
+	}
+
+	// ── Create feedback collection (unchanged) ──
+	console.log('\n--- Creating feedback collection ---');
 	try {
 		await pb.collections.getOne('feedback');
 		console.log('  ⏭ feedback already exists');
@@ -121,107 +108,46 @@ async function run() {
 			name: 'feedback',
 			type: 'base',
 			fields: [
-				{
-					name: 'user',
-					type: 'relation',
-					required: true,
-					options: {
-						collectionId: '_pb_users_auth_',
-						cascadeDelete: false,
-						maxSelect: 1,
-						minSelect: 1,
-					},
-				},
-				{
-					name: 'type',
-					type: 'select',
-					required: true,
-					options: {
-						values: ['feature', 'bug'],
-						maxSelect: 1,
-					},
-				},
-				{
-					name: 'title',
-					type: 'text',
-					required: true,
-				},
-				{
-					name: 'description',
-					type: 'text',
-					required: false,
-				},
-				{
-					name: 'status',
-					type: 'select',
-					required: true,
-					options: {
-						values: ['open', 'in_progress', 'resolved', 'wont_fix'],
-						maxSelect: 1,
-					},
-				},
+				{ name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: false, maxSelect: 1, minSelect: 1 },
+				{ name: 'type', type: 'select', required: true, values: ['feature', 'bug'], maxSelect: 1 },
+				{ name: 'title', type: 'text', required: true },
+				{ name: 'description', type: 'text', required: false },
+				{ name: 'status', type: 'select', required: true, values: ['open', 'in_progress', 'resolved', 'wont_fix'], maxSelect: 1 },
+				{ name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+				{ name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
 			],
-			listRule: 'user = @request.auth.id || @request.auth.id = "lxd00dcz55rt9lh"',
-			viewRule: 'user = @request.auth.id || @request.auth.id = "lxd00dcz55rt9lh"',
-			createRule: '@request.auth.id != ""',
-			updateRule: null, // only superusers can update status
-			deleteRule: 'user = @request.auth.id',
+			listRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			viewRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			createRule: `@request.auth.id != ""`,
+			updateRule: `@request.auth.id = "${ADMIN_ID}"`,
+			deleteRule: `user = @request.auth.id`,
 		});
 		console.log('  ✓ feedback created');
 	}
 
-	// Create notifications collection
-	console.log('--- Creating notifications collection ---');
-	let notifExists = false;
+	// ── Create notifications collection (unchanged) ──
+	console.log('\n--- Creating notifications collection ---');
 	try {
 		await pb.collections.getOne('notifications');
-		notifExists = true;
-	} catch { /* doesn't exist yet */ }
-
-	if (notifExists) {
 		console.log('  ⏭ notifications already exists');
-	} else {
+	} catch {
 		try {
 			await pb.collections.create({
 				name: 'notifications',
 				type: 'base',
 				fields: [
-					{
-						name: 'user',
-						type: 'relation',
-						required: true,
-						collectionId: '_pb_users_auth_',
-						cascadeDelete: false,
-						maxSelect: 1,
-						minSelect: 1,
-					},
-					{
-						name: 'message',
-						type: 'text',
-						required: true,
-					},
-					{
-						name: 'type',
-						type: 'select',
-						required: true,
-						values: ['submission_approved', 'submission_rejected'],
-						maxSelect: 1,
-					},
-					{
-						name: 'link',
-						type: 'text',
-						required: false,
-					},
-					{
-						name: 'read',
-						type: 'bool',
-						required: false,
-					},
+					{ name: 'user', type: 'relation', required: true, collectionId: '_pb_users_auth_', cascadeDelete: false, maxSelect: 1, minSelect: 1 },
+					{ name: 'message', type: 'text', required: true },
+					{ name: 'type', type: 'select', required: true, values: ['submission_approved', 'submission_rejected'], maxSelect: 1 },
+					{ name: 'link', type: 'text', required: false },
+					{ name: 'read', type: 'bool', required: false },
+					{ name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
+					{ name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
 				],
 				listRule: 'user = @request.auth.id',
 				viewRule: 'user = @request.auth.id',
-				createRule: null, // only superusers create notifications (from admin actions)
-				updateRule: 'user = @request.auth.id', // users can mark their own as read
+				createRule: `@request.auth.id = "${ADMIN_ID}"`,
+				updateRule: 'user = @request.auth.id',
 				deleteRule: 'user = @request.auth.id',
 			});
 			console.log('  ✓ notifications created');
@@ -230,71 +156,23 @@ async function run() {
 		}
 	}
 
-	// Update API rules so admin can see all submissions and feedback
-	const ADMIN_ID = 'lxd00dcz55rt9lh';
-	const adminOnlyRule = `@request.auth.id = "${ADMIN_ID}"`;
-	const adminListRule = `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`;
-
-	// Add missing created/updated autodate fields
-	console.log('\n--- Adding created/updated fields ---');
-	for (const name of ['submissions', 'feedback', 'notifications']) {
-		try {
-			const col = await pb.collections.getOne(name);
-			const hasCreated = col.fields?.some((f: any) => f.name === 'created');
-			if (hasCreated) {
-				console.log(`  ⏭ ${name} already has created/updated`);
-				continue;
-			}
-			await pb.collections.update(col.id, {
-				fields: [
-					...col.fields,
-					{
-						name: 'created',
-						type: 'autodate',
-						onCreate: true,
-						onUpdate: false,
-					},
-					{
-						name: 'updated',
-						type: 'autodate',
-						onCreate: true,
-						onUpdate: true,
-					},
-				],
-			});
-			console.log(`  ✓ ${name} — added created/updated fields`);
-		} catch (err: any) {
-			console.error(`  ✗ ${name} — ${err?.message || err}`);
-		}
-	}
-
-	console.log('\n--- Updating collection rules ---');
-	for (const name of ['submissions', 'feedback']) {
-		try {
-			const col = await pb.collections.getOne(name);
-			await pb.collections.update(col.id, {
-				listRule: adminListRule,
-				viewRule: adminListRule,
-				updateRule: adminOnlyRule,
-			});
-			console.log(`  ✓ ${name} — user sees own, admin sees all, admin can update`);
-		} catch (err: any) {
-			console.error(`  ✗ ${name} — ${err?.message || err}`);
-		}
-	}
-
-	// Allow admin to create notifications for users
+	// ── Update exercises API rules ──
+	console.log('\n--- Updating exercises API rules ---');
 	try {
-		const notifCol = await pb.collections.getOne('notifications');
-		await pb.collections.update(notifCol.id, {
-			createRule: adminOnlyRule,
+		await pb.collections.update(exercisesCol.id, {
+			listRule: `user = "" || user = @request.auth.id`,
+			viewRule: `user = "" || user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			createRule: `@request.auth.id != ""`,
+			updateRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
+			deleteRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
 		});
-		console.log('  ✓ notifications — admin can create records');
+		console.log('  ✓ exercises — API rules updated');
 	} catch (err: any) {
-		console.error(`  ✗ notifications — ${err?.message || err}`);
+		console.error('  ✗ exercises —', JSON.stringify(err?.response || err?.message || err));
 	}
 
-	// Allow admin to view all user records (needed for expand=user on submissions)
+	// ── Update users API rules (admin can view all) ──
+	console.log('\n--- Updating users API rules ---');
 	try {
 		const usersCol = await pb.collections.getOne('users');
 		await pb.collections.update(usersCol.id, {
@@ -304,20 +182,6 @@ async function run() {
 		console.log('  ✓ users — admin can view/list all user records');
 	} catch (err: any) {
 		console.error(`  ✗ users — ${err?.message || err}`);
-	}
-
-	// Allow admin to view all exercises (needed for diff view on submissions)
-	try {
-		const exCol = await pb.collections.getOne('exercises');
-		await pb.collections.update(exCol.id, {
-			viewRule: `user = "" || user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
-			listRule: `user = "" || user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
-			updateRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
-			deleteRule: `user = @request.auth.id || @request.auth.id = "${ADMIN_ID}"`,
-		});
-		console.log('  ✓ exercises — admin can view/list all exercises');
-	} catch (err: any) {
-		console.error(`  ✗ exercises —`, JSON.stringify(err?.response || err?.message || err));
 	}
 
 	console.log('\nDone!');

@@ -298,6 +298,7 @@
 				class="w-full rounded-xl border border-border bg-surface p-3 [--cell-size:--spacing(10)] *:w-full"
 				weekdayFormat="short"
 				type="single"
+				preventDeselect
 				onValueChange={(val) => handleValueChange(val)}
 				bind:value={selectedDate}
 				bind:placeholder

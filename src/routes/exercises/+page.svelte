@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
@@ -7,11 +8,35 @@
 	import ArrowUpNarrowWide from '@lucide/svelte/icons/arrow-up-narrow-wide';
 	import ArrowDownNarrowWide from '@lucide/svelte/icons/arrow-down-narrow-wide';
 	import AlphabetScroller from '$lib/components/AlphabetScroller.svelte';
+	import type { UserExercise } from '$lib/pocketbase/types';
 
 	let searchQuery = $state('');
 	let activeCategory = $state('');
 	let showCreateForm = $state(false);
 	let sortAsc = $state(true);
+
+	// Fetch user_exercises to know which canonical exercises have overrides (e.g. added videos)
+	let userExerciseMap = $state<Map<string, UserExercise>>(new Map());
+
+	async function loadUserExercises() {
+		try {
+			const ues = await pb.collection('user_exercises').getFullList<UserExercise>({
+				filter: `user = "${currentUserId()}"`,
+			});
+			userExerciseMap = new Map(ues.map(ue => [ue.exercise, ue]));
+		} catch {
+			userExerciseMap = new Map();
+		}
+	}
+
+	$effect(() => { untrack(() => loadUserExercises()); });
+
+	/** Get effective video count: user_exercise override if present, else canonical */
+	function videoCount(exerciseId: string, canonicalVideos: any[] | undefined): number {
+		const ue = userExerciseMap.get(exerciseId);
+		if (ue) return ue.video_urls?.length || 0;
+		return canonicalVideos?.length || 0;
+	}
 
 	const categoryFilters = CATEGORIES;
 
@@ -236,7 +261,7 @@
 				{#if letter !== prevLetter}
 					<div data-letter={letter}></div>
 				{/if}
-				<ExerciseListItem {exercise} showVideos />
+				<ExerciseListItem {exercise} showVideos videoCount={videoCount(exercise.id, exercise.video_urls)} />
 			{/each}
 
 			{#if filtered().length === 0}

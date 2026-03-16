@@ -2,7 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { pb } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import type { SubmissionExpanded, FeedbackExpanded, User, Exercise } from '$lib/pocketbase/types';
+	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
+	import type { SubmissionExpanded, FeedbackExpanded, User, Exercise, UserExercise } from '$lib/pocketbase/types';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { ChevronLeft, Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from '@lucide/svelte';
 
@@ -24,7 +25,7 @@
 		try {
 			submissions = await pb.collection('submissions').getFullList<SubmissionExpanded>({
 				sort: '-created',
-				expand: 'user',
+				expand: 'user,exercise,user_exercise',
 			});
 		} catch (err) {
 			console.error('Failed to load submissions:', err);
@@ -58,44 +59,39 @@
 
 	$effect(() => { loadAll(); });
 
+	/** Determine if this is a fork submission (has user_exercise + diff) or new exercise proposal */
+	function isForkSubmission(sub: SubmissionExpanded): boolean {
+		return !!sub.user_exercise && Object.keys(sub.diff || {}).length > 0;
+	}
+
 	async function approveSubmission(sub: SubmissionExpanded) {
 		processing = sub.id;
 		try {
 			let notifLink = '';
 
-			if (sub.type === 'exercise') {
-				const userExercise = await pb.collection('exercises').getOne(sub.record_id);
-
-				if (sub.global_exercise) {
-					// Merge changes into the existing global exercise
-					const { id, collectionId, collectionName, created, updated, user, ...data } = userExercise;
-					await pb.collection('exercises').update(sub.global_exercise, data);
-					notifLink = `/exercises/${sub.global_exercise}`;
-				} else {
-					// No global origin — create a new global exercise
-					const { id, collectionId, collectionName, created, updated, user, ...data } = userExercise;
-					const newGlobal = await pb.collection('exercises').create({ ...data, user: '' });
-					notifLink = `/exercises/${newGlobal.id}`;
+			if (isForkSubmission(sub)) {
+				// Fork approval: apply diff fields to canonical exercise
+				const updateData: Record<string, any> = {};
+				for (const [field, change] of Object.entries(sub.diff || {})) {
+					updateData[field] = change.new;
 				}
+				await pb.collection('exercises').update(sub.exercise, updateData);
 
-				// Delete the user's fork now that changes are merged
+				// Delete the user_exercise overlay
 				try {
-					await pb.collection('exercises').delete(sub.record_id);
-				} catch { /* fork may already be gone */ }
-			} else if (sub.type === 'workout') {
-				const workout = await pb.collection('workouts').getOne(sub.record_id);
-				const { id, collectionId, collectionName, created, updated, user, ...data } = workout;
-				const newGlobal = await pb.collection('workouts').create({ ...data, user: '' });
-				notifLink = `/workouts/${newGlobal.id}`;
+					await pb.collection('user_exercises').delete(sub.user_exercise);
+				} catch { /* may already be gone */ }
 
-				try {
-					await pb.collection('workouts').delete(sub.record_id);
-				} catch { /* fork may already be gone */ }
+				notifLink = `/exercises/${sub.exercise}`;
+			} else {
+				// New exercise promotion: set user="" on the exercise
+				await pb.collection('exercises').update(sub.exercise, { user: '' });
+				notifLink = `/exercises/${sub.exercise}`;
 			}
 
 			await pb.collection('submissions').update(sub.id, { status: 'approved' });
+			await exerciseCache.invalidate();
 
-			// Notify the submitting user — link to the global exercise, not the deleted fork
 			await pb.collection('notifications').create({
 				user: sub.user,
 				message: `Your proposed changes to "${sub.record_name}" were approved!`,
@@ -120,12 +116,11 @@
 				reviewer_notes: notes || '',
 			});
 
-			// Notify the submitting user
 			await pb.collection('notifications').create({
 				user: sub.user,
 				message: `Your proposed changes to "${sub.record_name}" were not accepted.${notes ? ' Note: ' + notes : ''}`,
 				type: 'submission_rejected',
-				link: `/exercises/${sub.record_id}`,
+				link: `/exercises/${sub.exercise}`,
 				read: false,
 			});
 
@@ -151,29 +146,9 @@
 
 	// Track expanded submission diffs
 	let expandedDiff = $state<string | null>(null);
-	let diffData = $state<{ global: Exercise | null; user: Exercise | null }>({ global: null, user: null });
-	let diffLoading = $state(false);
 
-	async function toggleDiff(sub: SubmissionExpanded) {
-		if (expandedDiff === sub.id) {
-			expandedDiff = null;
-			return;
-		}
-		expandedDiff = sub.id;
-		diffLoading = true;
-		try {
-			const userExercise = await pb.collection('exercises').getOne<Exercise>(sub.record_id);
-			let globalExercise: Exercise | null = null;
-			if (sub.global_exercise) {
-				globalExercise = await pb.collection('exercises').getOne<Exercise>(sub.global_exercise);
-			}
-			diffData = { global: globalExercise, user: userExercise };
-		} catch (err) {
-			console.error('Failed to load diff:', err);
-			diffData = { global: null, user: null };
-		} finally {
-			diffLoading = false;
-		}
+	function toggleDiff(sub: SubmissionExpanded) {
+		expandedDiff = expandedDiff === sub.id ? null : sub.id;
 	}
 
 	const pendingCount = $derived(submissions.filter(s => s.status === 'pending').length);
@@ -262,9 +237,9 @@
 										size="sm"
 									/>
 									<div class="min-w-0">
-										<p class="font-medium truncate">{sub.record_name || sub.record_id}</p>
+										<p class="font-medium truncate">{sub.record_name || 'Unknown'}</p>
 										<p class="text-xs text-text-muted">
-											{sub.type} by {sub.expand?.user?.name || sub.expand?.user?.email || 'Unknown'}
+											{isForkSubmission(sub) ? 'fork' : 'new exercise'} by {sub.expand?.user?.name || sub.expand?.user?.email || 'Unknown'}
 										</p>
 									</div>
 								</div>
@@ -277,7 +252,8 @@
 								<p class="text-sm text-text-muted mt-2">{sub.notes}</p>
 							{/if}
 
-							{#if sub.global_exercise && sub.status === 'pending'}
+							<!-- Diff display for fork submissions -->
+							{#if isForkSubmission(sub) && sub.status === 'pending'}
 								<button
 									type="button"
 									onclick={() => toggleDiff(sub)}
@@ -288,65 +264,50 @@
 
 								{#if expandedDiff === sub.id}
 									<div class="mt-3 rounded-lg border border-border bg-surface-dim p-3 text-xs space-y-2">
-										{#if diffLoading}
-											<div class="flex justify-center py-2">
-												<LoaderCircle class="w-4 h-4 animate-spin text-primary" />
+										{#each Object.entries(sub.diff || {}) as [field, change]}
+											<div>
+												<span class="font-medium capitalize">{field.replace('_', ' ')}:</span>
+												{#if field === 'video_urls'}
+													{@const oldCount = Array.isArray(change.old) ? change.old.length : 0}
+													{@const newCount = Array.isArray(change.new) ? change.new.length : 0}
+													<span class="text-text-muted">{oldCount}</span>
+													<span class="mx-1">&rarr;</span>
+													<span class="text-emerald-600 font-medium">{newCount}</span>
+													{@const newVideos = Array.isArray(change.new) ? change.new.filter(
+														(v: any) => !Array.isArray(change.old) || !change.old.some((g: any) => g.url === v.url)
+													) : []}
+													{#if newVideos.length > 0}
+														<div class="mt-1">
+															<span class="font-medium">New videos:</span>
+															{#each newVideos as v}
+																<a href={v.url} target="_blank" rel="noopener noreferrer" class="block text-primary hover:underline truncate mt-0.5">{v.url}</a>
+															{/each}
+														</div>
+													{/if}
+												{:else if field === 'description'}
+													<span class="text-text-muted"> changed</span>
+													{#if change.new}
+														<p class="mt-1 text-text-muted italic">"{change.new}"</p>
+													{/if}
+												{:else}
+													<span class="text-text-muted line-through">{JSON.stringify(change.old)}</span>
+													<span class="mx-1">&rarr;</span>
+													<span class="text-emerald-600">{JSON.stringify(change.new)}</span>
+												{/if}
 											</div>
-										{:else if diffData.user}
-											{#if diffData.global}
-												{#if diffData.user.video_urls?.length !== diffData.global.video_urls?.length}
-													<div>
-														<span class="font-medium">Videos:</span>
-														<span class="text-text-muted">{diffData.global.video_urls?.length || 0}</span>
-														<span class="mx-1">&rarr;</span>
-														<span class="text-emerald-600 font-medium">{diffData.user.video_urls?.length || 0}</span>
-													</div>
-												{/if}
-												{#if diffData.user.description !== diffData.global.description}
-													<div>
-														<span class="font-medium">Description:</span>
-														<span class="text-text-muted"> changed</span>
-													</div>
-												{/if}
-												{#if diffData.user.name !== diffData.global.name}
-													<div>
-														<span class="font-medium">Name:</span>
-														<span class="text-text-muted line-through">{diffData.global.name}</span>
-														<span class="mx-1">&rarr;</span>
-														<span class="text-emerald-600">{diffData.user.name}</span>
-													</div>
-												{/if}
-												{#if JSON.stringify(diffData.user.muscle_groups) !== JSON.stringify(diffData.global.muscle_groups)}
-													<div>
-														<span class="font-medium">Muscle groups:</span>
-														<span class="text-text-muted"> changed</span>
-													</div>
-												{/if}
-												{#if diffData.user.category !== diffData.global.category}
-													<div>
-														<span class="font-medium">Category:</span>
-														<span class="text-text-muted">{diffData.global.category}</span>
-														<span class="mx-1">&rarr;</span>
-														<span class="text-emerald-600">{diffData.user.category}</span>
-													</div>
-												{/if}
-												{@const newVideos = (diffData.user.video_urls || []).filter(
-													(v) => !(diffData.global!.video_urls || []).some((g) => g.url === v.url)
-												)}
-												{#if newVideos.length > 0}
-													<div>
-														<span class="font-medium">New videos:</span>
-														{#each newVideos as v}
-															<a href={v.url} target="_blank" rel="noopener noreferrer" class="block text-primary hover:underline truncate mt-0.5">{v.url}</a>
-														{/each}
-													</div>
-												{/if}
-											{:else}
-												<p class="text-text-muted">New exercise (no global original)</p>
-											{/if}
-										{:else}
-											<p class="text-text-muted">Could not load exercise data.</p>
+										{/each}
+									</div>
+								{/if}
+							{:else if !isForkSubmission(sub) && sub.status === 'pending'}
+								<!-- New exercise proposal — show exercise details -->
+								{#if sub.expand?.exercise}
+									<div class="mt-3 rounded-lg border border-border bg-surface-dim p-3 text-xs space-y-1">
+										<p><span class="font-medium">Category:</span> {sub.expand.exercise.category}</p>
+										<p><span class="font-medium">Muscle groups:</span> {(sub.expand.exercise.muscle_groups || []).join(', ') || 'none'}</p>
+										{#if sub.expand.exercise.description}
+											<p><span class="font-medium">Description:</span> {sub.expand.exercise.description}</p>
 										{/if}
+										<p><span class="font-medium">Videos:</span> {sub.expand.exercise.video_urls?.length || 0}</p>
 									</div>
 								{/if}
 							{/if}

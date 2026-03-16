@@ -7,20 +7,23 @@
 		exercise: Exercise;
 		target?: string;
 		showVideos?: boolean;
+		videoCount?: number;
 		editing?: boolean;
 		ondelete?: () => void;
 		onselect?: () => void;
 		oneditTarget?: () => void;
 	}
 
-	let { exercise, target = '', showVideos = false, editing = false, ondelete, onselect, oneditTarget }: Props = $props();
+	let { exercise, target = '', showVideos = false, videoCount, editing = false, ondelete, onselect, oneditTarget }: Props = $props();
+
+	const effectiveVideoCount = $derived(videoCount ?? exercise.video_urls?.length ?? 0);
 </script>
 
 {#snippet content()}
 	<div class="font-medium">
 		{exercise.name}
-		{#if showVideos && exercise.video_urls?.length}
-			<span class="ml-1.5 text-xs font-normal text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">{exercise.video_urls.length} video{exercise.video_urls.length > 1 ? 's' : ''}</span>
+		{#if showVideos && effectiveVideoCount > 0}
+			<span class="ml-1.5 text-xs font-normal text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">{effectiveVideoCount} video{effectiveVideoCount > 1 ? 's' : ''}</span>
 		{/if}
 	</div>
 	<div class="flex flex-wrap gap-1 mt-1.5">

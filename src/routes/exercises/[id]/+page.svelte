@@ -1,15 +1,16 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
-	import type { Exercise, SetData, SessionEntry, Session, Submission } from '$lib/pocketbase/types';
+	import type { Exercise, UserExercise, SetData, SessionEntry, Session, Submission } from '$lib/pocketbase/types';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 
 	let exercise = $state<Exercise | null>(null);
+	let userExercise = $state<UserExercise | null>(null);
 	let recentHistory = $state<Array<{
 		date: string;
 		sets: SetData[];
@@ -18,17 +19,50 @@
 		notes: string;
 	}>>([]);
 	let loading = $state(true);
+	let pendingProposal = $state<Submission | null>(null);
+	let proposing = $state(false);
+
+	// Derived display values — overlay user_exercise fields on canonical
+	let displayDescription = $derived(userExercise?.description ?? exercise?.description ?? '');
+	let displayVideoUrls = $derived(userExercise?.video_urls ?? exercise?.video_urls ?? []);
+	let isCanonical = $derived(exercise ? !exercise.user : false);
+	let isCustomized = $derived(!!userExercise);
 
 	async function loadData(id: string) {
 		if (!exercise) loading = true;
 
-		exercise = (exerciseCache.getById(id) ?? await pb.collection('exercises').getOne<Exercise>(id)) as Exercise;
+		// Always fetch fresh from PB — cache may be stale (e.g. after admin approval changes user field)
+		exercise = await pb.collection('exercises').getOne<Exercise>(id);
 
+		// Load user_exercise overlay for canonical exercises
+		if (!exercise.user) {
+			try {
+				const results = await pb.collection('user_exercises').getFullList<UserExercise>({
+					filter: `exercise = "${id}" && user = "${currentUserId()}"`,
+				});
+				userExercise = results.length > 0 ? results[0] : null;
+			} catch {
+				userExercise = null;
+			}
+		} else {
+			userExercise = null;
+		}
+
+		// Check for pending proposal
+		try {
+			const existing = await pb.collection('submissions').getFullList<Submission>({
+				filter: `user = "${currentUserId()}" && exercise = "${id}" && status = "pending"`,
+			});
+			pendingProposal = existing.length > 0 ? existing[0] : null;
+		} catch {
+			pendingProposal = null;
+		}
+
+		// Load session history
 		try {
 			const all = await pb.collection('session_entries').getFullList();
 			const entries = all.filter((e: any) => e.exercise === id && e.session) as SessionEntry[];
 
-			// Fetch session dates
 			const sessionIds = [...new Set(entries.map((e) => e.session))];
 			const sessionResults = await Promise.all(
 				sessionIds.map((sid) => pb.collection('sessions').getOne<Session>(sid).catch(() => null))
@@ -51,10 +85,12 @@
 		}
 
 		loading = false;
-		detectGlobalOrigin();
 	}
 
-	$effect(() => { loadData($page.params.id!); });
+	$effect(() => {
+		const id = $page.params.id!;
+		untrack(() => loadData(id));
+	});
 
 	function formatDate(d: string): string {
 		return new Date(d).toLocaleDateString('en-US', {
@@ -76,68 +112,91 @@
 		return match ? `&start=${match[1]}` : '';
 	}
 
-	// Track whether this exercise was forked from a global one
-	let globalExerciseId = $state<string | null>(null);
-	let pendingProposal = $state<Submission | null>(null);
-	let proposing = $state(false);
+	/** Ensure a user_exercise record exists for this canonical exercise. Creates one if needed. */
+	async function ensureUserExercise(): Promise<UserExercise> {
+		if (userExercise) return userExercise;
+		if (!exercise) throw new Error('No exercise loaded');
 
-	/** If the exercise is global (no user), clone it as the current user's own copy. */
-	async function forkIfGlobal(): Promise<Exercise> {
-		if (exercise!.user) return exercise!;
-		const originalId = exercise!.id;
-		const { id, collectionId, collectionName, created, updated, ...data } = exercise! as any;
-		const clone = await pb.collection('exercises').create<Exercise>({
-			...data,
-			user: currentUserId()
+		const created = await pb.collection('user_exercises').create<UserExercise>({
+			user: currentUserId(),
+			exercise: exercise.id,
+			description: exercise.description || '',
+			video_urls: exercise.video_urls || [],
 		});
-		globalExerciseId = originalId;
-		await exerciseCache.invalidate();
-		// Navigate to the new clone's URL so future edits target the right record
-		await goto(`/exercises/${clone.id}`, { replaceState: true });
-		exercise = clone;
-		return clone;
+		userExercise = created;
+		return created;
 	}
 
-	// Detect if this user exercise was forked from a global one by matching name
-	async function detectGlobalOrigin() {
-		if (!exercise || !exercise.user) return;
-		// Check if there's a global exercise with the same name
-		try {
-			const globals = await pb.collection('exercises').getFullList<Exercise>({
-				filter: `user = "" && name = "${exercise.name.replace(/"/g, '\\"')}"`,
-			});
-			if (globals.length > 0) {
-				globalExerciseId = globals[0].id;
-			}
-		} catch { /* ignore */ }
+	/** Compute diff between user_exercise and canonical exercise */
+	function computeDiff(): Record<string, { old: any; new: any }> {
+		if (!exercise || !userExercise) return {};
+		const diff: Record<string, { old: any; new: any }> = {};
 
-		// Check if there's already a pending proposal for this exercise
-		try {
-			const existing = await pb.collection('submissions').getFullList<Submission>({
-				filter: `user = "${currentUserId()}" && record_id = "${exercise.id}" && status = "pending"`,
-			});
-			pendingProposal = existing.length > 0 ? existing[0] : null;
-		} catch { /* ignore */ }
+		if (userExercise.description !== exercise.description) {
+			diff.description = { old: exercise.description, new: userExercise.description };
+		}
+		if (JSON.stringify(userExercise.video_urls || []) !== JSON.stringify(exercise.video_urls || [])) {
+			diff.video_urls = { old: exercise.video_urls || [], new: userExercise.video_urls || [] };
+		}
+
+		return diff;
 	}
 
 	async function proposeChanges() {
-		if (!exercise || !globalExerciseId) return;
+		if (!exercise || !userExercise) return;
 		proposing = true;
 		try {
+			const diff = computeDiff();
+			if (Object.keys(diff).length === 0) {
+				toastStore.error('No changes to propose.');
+				return;
+			}
 			await pb.collection('submissions').create({
 				user: currentUserId(),
-				type: 'exercise',
-				record_id: exercise.id,
+				exercise: exercise.id,
+				user_exercise: userExercise.id,
 				record_name: exercise.name,
-				global_exercise: globalExerciseId,
+				diff,
 				status: 'pending',
 				notes: '',
 				reviewer_notes: '',
 			});
 			toastStore.success('Changes proposed to the global library!');
-			await detectGlobalOrigin(); // refresh pending state
+			// Refresh pending state
+			const existing = await pb.collection('submissions').getFullList<Submission>({
+				filter: `user = "${currentUserId()}" && exercise = "${exercise.id}" && status = "pending"`,
+			});
+			pendingProposal = existing.length > 0 ? existing[0] : null;
 		} catch (err: any) {
 			console.error('Failed to propose changes:', err);
+			toastStore.error('Failed to submit proposal. Please try again.');
+		} finally {
+			proposing = false;
+		}
+	}
+
+	/** Propose a user-created exercise for canonical promotion */
+	async function proposeNewExercise() {
+		if (!exercise || !exercise.user) return;
+		proposing = true;
+		try {
+			await pb.collection('submissions').create({
+				user: currentUserId(),
+				exercise: exercise.id,
+				user_exercise: '',
+				record_name: exercise.name,
+				diff: {},
+				status: 'pending',
+				notes: '',
+				reviewer_notes: '',
+			});
+			toastStore.success('Exercise proposed for the global library!');
+			const existing = await pb.collection('submissions').getFullList<Submission>({
+				filter: `user = "${currentUserId()}" && exercise = "${exercise.id}" && status = "pending"`,
+			});
+			pendingProposal = existing.length > 0 ? existing[0] : null;
+		} catch (err: any) {
+			console.error('Failed to propose exercise:', err);
 			toastStore.error('Failed to submit proposal. Please try again.');
 		} finally {
 			proposing = false;
@@ -160,7 +219,7 @@
 		if (!exercise) return;
 		editName = exercise.name;
 		editCategory = exercise.category;
-		editDescription = exercise.description || '';
+		editDescription = isCanonical ? displayDescription : (exercise.description || '');
 		editMuscleGroups = [...(exercise.muscle_groups || [])];
 		editing = true;
 	}
@@ -181,16 +240,27 @@
 		e.preventDefault();
 		if (!exercise) return;
 		try {
-			const owned = await forkIfGlobal();
-			await pb.collection('exercises').update(owned.id, {
-				name: editName.trim(),
-				category: editCategory,
-				description: editDescription,
-				muscle_groups: editMuscleGroups
-			});
+			if (isCanonical) {
+				// Editing a canonical exercise → update user_exercise overlay
+				const ue = await ensureUserExercise();
+				await pb.collection('user_exercises').update(ue.id, {
+					description: editDescription,
+				});
+				// Name, category, muscle_groups aren't overridable — they stay on canonical
+				// But we reload to reflect changes
+				userExercise = await pb.collection('user_exercises').getOne<UserExercise>(ue.id);
+			} else {
+				// Editing a user-created exercise → update directly
+				await pb.collection('exercises').update(exercise.id, {
+					name: editName.trim(),
+					category: editCategory,
+					description: editDescription,
+					muscle_groups: editMuscleGroups
+				});
+				await exerciseCache.invalidate();
+			}
 			editing = false;
-			await exerciseCache.invalidate();
-			await loadData(owned.id);
+			await loadData(exercise.id);
 		} catch (err: any) {
 			console.error('Failed to update exercise:', err);
 			toastStore.error('Failed to update exercise. Please try again.');
@@ -204,13 +274,19 @@
 		if (!ytMatch) { alert('Please paste a valid YouTube URL'); return; }
 
 		try {
-			const owned = await forkIfGlobal();
-			const videos = [...(owned.video_urls || []), { url: videoUrl, title: '', thumbnail_url: '' }];
-			await pb.collection('exercises').update(owned.id, { video_urls: videos });
+			if (isCanonical) {
+				const ue = await ensureUserExercise();
+				const videos = [...(ue.video_urls || []), { url: videoUrl, title: '', thumbnail_url: '' }];
+				await pb.collection('user_exercises').update(ue.id, { video_urls: videos });
+				userExercise = await pb.collection('user_exercises').getOne<UserExercise>(ue.id);
+			} else {
+				const videos = [...(exercise.video_urls || []), { url: videoUrl, title: '', thumbnail_url: '' }];
+				await pb.collection('exercises').update(exercise.id, { video_urls: videos });
+				await exerciseCache.invalidate();
+			}
 			videoUrl = '';
 			showAddVideo = false;
-			await exerciseCache.invalidate();
-			await loadData(owned.id);
+			await loadData(exercise.id);
 		} catch (err: any) {
 			console.error('Failed to save video:', err);
 			toastStore.error('Failed to save video. Please try again.');
@@ -227,12 +303,19 @@
 			confirmClass: 'bg-red-600 hover:bg-red-700 text-white',
 			async onConfirm() {
 				try {
-					const owned = await forkIfGlobal();
-					const videos = [...(owned.video_urls || [])];
-					videos.splice(index, 1);
-					await pb.collection('exercises').update(owned.id, { video_urls: videos });
-					await exerciseCache.invalidate();
-					await loadData(owned.id);
+					if (isCanonical) {
+						const ue = await ensureUserExercise();
+						const videos = [...(ue.video_urls || [])];
+						videos.splice(index, 1);
+						await pb.collection('user_exercises').update(ue.id, { video_urls: videos });
+						userExercise = await pb.collection('user_exercises').getOne<UserExercise>(ue.id);
+					} else {
+						const videos = [...(exercise!.video_urls || [])];
+						videos.splice(index, 1);
+						await pb.collection('exercises').update(exercise!.id, { video_urls: videos });
+						await exerciseCache.invalidate();
+					}
+					await loadData(exercise!.id);
 				} catch (err: any) {
 					console.error('Failed to remove video:', err);
 					toastStore.error('Failed to remove video. Please try again.');
@@ -275,7 +358,12 @@
 						<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
 					</svg>
 				</button>
-				<h1 class="font-bold text-lg leading-tight truncate">{editing ? editName || 'Edit Exercise' : exercise.name}</h1>
+				<div class="flex items-center gap-2 min-w-0">
+					<h1 class="font-bold text-lg leading-tight truncate">{editing ? editName || 'Edit Exercise' : exercise.name}</h1>
+					{#if isCustomized}
+						<span class="w-2 h-2 rounded-full bg-primary shrink-0" title="Customized"></span>
+					{/if}
+				</div>
 			</div>
 			{#if editing}
 				<div class="flex items-center gap-1">
@@ -295,35 +383,38 @@
 		{#if editing}
 			<form onsubmit={updateExercise}>
 				<div class="space-y-4 mb-6">
-					<div>
-						<label for="edit-name" class="block text-sm font-medium mb-1">Name</label>
-						<input id="edit-name" type="text" required bind:value={editName} class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
-					</div>
-					<div>
-						<label for="edit-category" class="block text-sm font-medium mb-1">Category</label>
-						<select id="edit-category" bind:value={editCategory} class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-							{#each CATEGORIES as cat}
-								<option value={cat.value}>{cat.label}</option>
-							{/each}
-						</select>
-					</div>
-					<div>
-						<label class="block text-sm font-medium mb-1">Muscle Groups</label>
-						<div class="flex flex-wrap gap-1.5">
-							{#each MUSCLE_GROUPS as mg}
-								<button
-									type="button"
-									onclick={() => toggleEditMuscleGroup(mg.value)}
-									class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors
-										{editMuscleGroups.includes(mg.value)
-										? 'bg-primary text-text-on-primary border border-transparent'
-										: 'bg-surface-dim text-text-muted hover:bg-surface-hover border border-border'}"
-								>
-									{mg.label}
-								</button>
-							{/each}
+					{#if !isCanonical}
+						<!-- Only user-created exercises can edit name/category/muscle_groups -->
+						<div>
+							<label for="edit-name" class="block text-sm font-medium mb-1">Name</label>
+							<input id="edit-name" type="text" required bind:value={editName} class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
 						</div>
-					</div>
+						<div>
+							<label for="edit-category" class="block text-sm font-medium mb-1">Category</label>
+							<select id="edit-category" bind:value={editCategory} class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
+								{#each CATEGORIES as cat}
+									<option value={cat.value}>{cat.label}</option>
+								{/each}
+							</select>
+						</div>
+						<div>
+							<label class="block text-sm font-medium mb-1">Muscle Groups</label>
+							<div class="flex flex-wrap gap-1.5">
+								{#each MUSCLE_GROUPS as mg}
+									<button
+										type="button"
+										onclick={() => toggleEditMuscleGroup(mg.value)}
+										class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors
+											{editMuscleGroups.includes(mg.value)
+											? 'bg-primary text-text-on-primary border border-transparent'
+											: 'bg-surface-dim text-text-muted hover:bg-surface-hover border border-border'}"
+									>
+										{mg.label}
+									</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
 					<div>
 						<label for="edit-desc" class="block text-sm font-medium mb-1">Description</label>
 						<textarea id="edit-desc" bind:value={editDescription} rows="3" class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"></textarea>
@@ -345,8 +436,8 @@
 				{/each}
 			</div>
 
-			{#if exercise.description}
-				<p class="text-sm text-text-muted leading-relaxed mb-6">{exercise.description}</p>
+			{#if displayDescription}
+				<p class="text-sm text-text-muted leading-relaxed mb-6">{displayDescription}</p>
 			{/if}
 		{/if}
 
@@ -372,9 +463,9 @@
 				</form>
 			{/if}
 
-			{#if exercise.video_urls?.length}
+			{#if displayVideoUrls?.length}
 				<div class="flex items-start gap-3 overflow-x-auto pb-2 snap-x snap-mandatory">
-					{#each exercise.video_urls as video, i}
+					{#each displayVideoUrls as video, i}
 						{@const ytId = getYoutubeId(video.url)}
 						{@const isVertical = /\/shorts\//.test(video.url)}
 						{#if ytId}
@@ -399,19 +490,42 @@
 			{/if}
 		</div>
 
-		<!-- Propose changes to global library -->
-		{#if exercise.user && globalExerciseId}
+		<!-- Propose changes / Submit for review -->
+		{#if isCanonical && isCustomized && !pendingProposal}
+			<div class="mb-8 p-4 rounded-xl border border-dashed border-primary/30 bg-primary/5">
+				<p class="text-sm text-text-muted mb-3">You've customized this exercise. Want to propose your changes for the global library?</p>
+				<button
+					type="button"
+					onclick={proposeChanges}
+					disabled={proposing}
+					class="w-full py-2.5 rounded-lg text-sm font-medium bg-primary text-text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+				>
+					{#if proposing}
+						<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+					{/if}
+					Propose to Global Library
+				</button>
+			</div>
+		{:else if isCanonical && pendingProposal}
+			<div class="mb-8 p-4 rounded-xl border border-dashed border-primary/30 bg-primary/5">
+				<div class="flex items-center gap-2 text-sm text-primary">
+					<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+					<span>Your changes are pending review.</span>
+				</div>
+			</div>
+		{:else if !isCanonical && exercise.user === currentUserId()}
+			<!-- User-created exercise — can propose for canonical promotion -->
 			<div class="mb-8 p-4 rounded-xl border border-dashed border-primary/30 bg-primary/5">
 				{#if pendingProposal}
 					<div class="flex items-center gap-2 text-sm text-primary">
 						<svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-						<span>Your changes are pending review.</span>
+						<span>Your exercise is pending review for the global library.</span>
 					</div>
 				{:else}
-					<p class="text-sm text-text-muted mb-3">You've customized this exercise. Want to propose your changes for the global library?</p>
+					<p class="text-sm text-text-muted mb-3">Want to propose this exercise for the global library?</p>
 					<button
 						type="button"
-						onclick={proposeChanges}
+						onclick={proposeNewExercise}
 						disabled={proposing}
 						class="w-full py-2.5 rounded-lg text-sm font-medium bg-primary text-text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
 					>

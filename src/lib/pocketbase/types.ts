@@ -102,12 +102,19 @@ export interface Goal extends RecordModel {
 	notes: string;
 }
 
+export interface UserExercise extends RecordModel {
+	user: string;
+	exercise: string; // FK to canonical exercise
+	description: string;
+	video_urls: VideoRef[];
+}
+
 export interface Submission extends RecordModel {
 	user: string;
-	type: 'exercise' | 'workout';
-	record_id: string;
+	exercise: string;        // FK to exercises (canonical or user-created)
+	user_exercise: string;   // FK to user_exercises (set for forks, empty for new)
 	record_name: string;
-	global_exercise: string;
+	diff: Record<string, { old: any; new: any }>;
 	status: 'pending' | 'approved' | 'rejected';
 	notes: string;
 	reviewer_notes: string;
@@ -132,6 +139,8 @@ export interface Feedback extends RecordModel {
 export interface SubmissionExpanded extends Submission {
 	expand?: {
 		user?: User;
+		exercise?: Exercise;
+		user_exercise?: UserExercise;
 	};
 }
 
