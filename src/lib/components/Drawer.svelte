@@ -105,7 +105,7 @@
 	<div
 		bind:this={panelEl}
 		class="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl shadow-xl
-			max-h-[85vh] flex flex-col"
+			h-[85vh] flex flex-col"
 		class:translate-y-full={!animating && !dragging}
 		class:translate-y-0={animating && !dragging}
 		style:transform={dragging ? `translateY(${dragOffsetY}px)` : undefined}
