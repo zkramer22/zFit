@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { goto, afterNavigate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import type { SessionExpanded, SessionEntryExpanded } from '$lib/pocketbase/types';
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import CalendarDayWithDots from '$lib/components/CalendarDayWithDots.svelte';
@@ -111,15 +112,20 @@
 		});
 	}
 
-	// Fetch on mount + re-fetch when month changes
+	// Fetch once auth is ready; re-fire when month changes
 	$effect(() => {
+		if (!authStore.isAuthenticated) return;
+		fetchActiveSessions();
+	});
+
+	$effect(() => {
+		if (!authStore.isAuthenticated) return;
 		fetchSessions(placeholder);
 	});
 
-	afterNavigate(() => {
-		fetchActiveSessions();
-		fetchSessions(placeholder);
-		if (view === 'list') fetchAllCompleted();
+	$effect(() => {
+		if (!authStore.isAuthenticated || view !== 'list') return;
+		fetchAllCompleted();
 	});
 
 	async function toggleSession(sessionId: string) {
@@ -156,7 +162,6 @@
 
 	function switchView(v: 'calendar' | 'list') {
 		view = v;
-		if (v === 'list' && allCompleted.length === 0) fetchAllCompleted();
 	}
 
 	function formatSessionDate(dateStr: string) {

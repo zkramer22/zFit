@@ -143,6 +143,11 @@
 	</div>
 {:else if authStore.loading && page.url.pathname === '/login'}
 	{@render children()}
+{:else if !authStore.isAuthenticated && page.url.pathname !== '/login'}
+	<!-- Unauthenticated on a protected route: show spinner while redirect runs -->
+	<div class="min-h-dvh flex items-center justify-center">
+		<LoaderCircle class="w-8 h-8 animate-spin text-primary" />
+	</div>
 {:else if authStore.isAuthenticated}
 	<!-- Top nav (desktop) -->
 	<header class="hidden md:flex items-center justify-between px-6 py-3 border-b border-border bg-surface">
