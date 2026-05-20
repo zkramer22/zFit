@@ -9,7 +9,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>__NODE__</string>
-    <string>build</string>
+    <string>serve-static.mjs</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -17,8 +17,6 @@
 
   <key>EnvironmentVariables</key>
   <dict>
-    <key>ORIGIN</key>
-    <string>https://zfit.ztkweb.com</string>
     <key>NODE_ENV</key>
     <string>production</string>
   </dict>
