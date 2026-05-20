@@ -1,4 +1,5 @@
 import { mount } from 'svelte';
+import 'sv-router/generated';
 import App from './App.svelte';
 import './app.css';
 
