@@ -14,7 +14,10 @@ git pull origin main
 npm ci --production=false
 npm run build
 
-# Restart the node app via launchctl
-launchctl kickstart -k "gui/$(id -u)/com.zfit.app"
+# Re-install plists from the repo and restart all services. We use
+# setup-server.sh (which does bootout + bootstrap per service) instead
+# of `launchctl kickstart` so plist content changes get picked up — a
+# bare kickstart re-runs the *installed* plist, not the repo one.
+bash scripts/setup-server.sh
 
 echo "[$(date)] Deploy complete."
