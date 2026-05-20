@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { goto, replaceState } from '$app/navigation';
+	import { navigate, route } from 'sv-router/generated';
 	import { untrack } from 'svelte';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
@@ -116,7 +115,7 @@
 			if (params.get('edit') === '1') {
 				fromSessionId = params.get('fromSession');
 				enterEditMode();
-				replaceState(window.location.pathname, {});
+				history.replaceState({}, '', window.location.pathname);
 			}
 		} catch (err) {
 			console.error('Failed to load workout:', err);
@@ -126,7 +125,7 @@
 	}
 
 	$effect(() => {
-		const id = $page.params.id!;
+		const id = route.params.id!;
 		untrack(() => loadWorkout(id));
 	});
 
@@ -397,7 +396,7 @@
 				await pb.collection('workouts').delete(w.id);
 				await workoutCache.invalidate();
 				await workoutExerciseCache.invalidate();
-				await goto('/workouts');
+				await navigate('/workouts');
 			}
 		});
 	}

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { LoaderCircle } from '@lucide/svelte';
 
@@ -19,7 +18,8 @@
 			} else {
 				await authStore.loginWithPassword(email, password);
 			}
-			goto('/', { invalidateAll: true });
+			// Auth state flips → App.svelte re-renders to <Router />
+			// URL is preserved (so /workouts → still /workouts), Router takes over
 		} catch (err: any) {
 			error = err?.response?.message || err?.message || 'Something went wrong';
 			submitting = false;
@@ -31,7 +31,6 @@
 		submitting = true;
 		try {
 			await authStore.loginWithGoogle();
-			goto('/', { invalidateAll: true });
 		} catch (err: any) {
 			error = err?.response?.message || err?.message || 'Google sign-in failed';
 			submitting = false;

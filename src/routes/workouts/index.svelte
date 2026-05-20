@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { navigate } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
@@ -114,7 +114,10 @@
 		selectedTags = [];
 		showCreateForm = false;
 		await workoutCache.invalidate();
-		await goto(`/workouts/${record.id}?edit=1`);
+		await navigate('/workouts/:id', {
+			params: { id: record.id },
+			search: { edit: '1' }
+		});
 	}
 
 	function promptDeleteWorkout(workout: Workout) {

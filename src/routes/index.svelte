@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { goto, afterNavigate } from '$app/navigation';
+	import { navigate } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import type { SessionExpanded, SessionEntryExpanded } from '$lib/pocketbase/types';
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import CalendarDayWithDots from '$lib/components/CalendarDayWithDots.svelte';
@@ -111,15 +112,20 @@
 		});
 	}
 
-	// Fetch on mount + re-fetch when month changes
+	// Fetch once auth is ready; re-fire when month changes
 	$effect(() => {
+		if (!authStore.isAuthenticated) return;
+		fetchActiveSessions();
+	});
+
+	$effect(() => {
+		if (!authStore.isAuthenticated) return;
 		fetchSessions(placeholder);
 	});
 
-	afterNavigate(() => {
-		fetchActiveSessions();
-		fetchSessions(placeholder);
-		if (view === 'list') fetchAllCompleted();
+	$effect(() => {
+		if (!authStore.isAuthenticated || view !== 'list') return;
+		fetchAllCompleted();
 	});
 
 	async function toggleSession(sessionId: string) {
@@ -156,7 +162,6 @@
 
 	function switchView(v: 'calendar' | 'list') {
 		view = v;
-		if (v === 'list' && allCompleted.length === 0) fetchAllCompleted();
 	}
 
 	function formatSessionDate(dateStr: string) {
@@ -201,7 +206,10 @@
 			}
 
 			await Promise.all([workoutCache.invalidate(), workoutExerciseCache.invalidate()]);
-			await goto(`/workouts/${workout.id}?edit=1&fromSession=${sess.id}`);
+			await navigate('/workouts/:id', {
+				params: { id: workout.id },
+				search: { edit: '1', fromSession: sess.id }
+			});
 		} catch (err) {
 			console.error('Failed to create workout from session:', err);
 		} finally {
@@ -219,7 +227,7 @@
 		<h1 class="text-2xl font-bold">Home</h1>
 		<button
 			type="button"
-			onclick={() => goto('/session')}
+			onclick={() => navigate('/session')}
 			class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
 			aria-label="New session"
 		>
@@ -240,7 +248,7 @@
 					<div class="flex items-center gap-2 p-3 rounded-xl border border-primary/40 ring-2 ring-primary/20 bg-surface">
 						<button
 							type="button"
-							onclick={() => goto(`/session/${sess.id}`)}
+							onclick={() => navigate('/session/:sessionId', { params: { sessionId: sess.id } })}
 							class="flex-1 flex items-center gap-3 text-left min-w-0"
 						>
 							<div class="p-2 rounded-lg bg-primary/10">
@@ -327,7 +335,7 @@
 
 					<button
 						type="button"
-						onclick={() => goto(`/session?date=${dateKey(selectedDate!)}`)}
+						onclick={() => navigate('/session', { search: { date: dateKey(selectedDate!) } })}
 						class="mt-2 w-full p-2 rounded-lg border border-dashed border-border text-sm text-text-muted hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1"
 					>
 						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -352,7 +360,7 @@
 
 			<button
 				type="button"
-				onclick={() => goto('/session')}
+				onclick={() => navigate('/session')}
 				class="mt-2 w-full p-2 rounded-lg border border-dashed border-border text-sm text-text-muted hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1"
 			>
 				<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -412,7 +420,7 @@
 					<div class="flex gap-2 mt-1">
 						<button
 							type="button"
-							onclick={(e: MouseEvent) => { e.stopPropagation(); goto(`/session/${sess.id}`); }}
+							onclick={(e: MouseEvent) => { e.stopPropagation(); navigate('/session/:sessionId', { params: { sessionId: sess.id } }); }}
 							class="flex-1 p-2 rounded-lg border border-border text-xs text-text-muted
 								hover:border-primary hover:text-primary transition-colors flex items-center justify-center gap-1.5"
 						>

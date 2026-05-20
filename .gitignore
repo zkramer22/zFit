@@ -12,7 +12,9 @@ certs
 .netlify
 .wrangler
 /.svelte-kit
+/.router
 /build
+/dist
 
 # OS
 .DS_Store
@@ -28,3 +30,4 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .claude/settings.local.json
+.claude/scheduled_tasks.lock

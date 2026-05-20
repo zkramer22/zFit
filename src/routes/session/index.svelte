@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { goto, afterNavigate } from '$app/navigation';
+	import { navigate, route } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import type { SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
@@ -9,14 +8,10 @@
 
 	let creating = $state(false);
 
-	afterNavigate(() => {
-		creating = false;
-	});
-
 	async function startSession(workoutId?: string, programId?: string) {
 		creating = true;
-		const dateParam = $page.url.searchParams.get('date');
-		const sessionDate = dateParam || new Date().toISOString().split('T')[0];
+		const dateParam = route.search.date;
+		const sessionDate = (typeof dateParam === 'string' ? dateParam : '') || new Date().toISOString().split('T')[0];
 		const session = await pb.collection('sessions').create({
 			user: currentUserId(),
 			workout: workoutId || '',
@@ -64,7 +59,7 @@
 			}
 		}
 
-		await goto(`/session/${session.id}`);
+		await navigate('/session/:sessionId', { params: { sessionId: session.id } });
 	}
 </script>
 

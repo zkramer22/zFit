@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { goto, beforeNavigate } from '$app/navigation';
+	import { navigate, route } from 'sv-router/generated';
+	import { blockNavigation } from 'sv-router';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import type { SessionExpanded, SessionEntryExpanded, WorkoutExerciseExpanded, SetData } from '$lib/pocketbase/types';
@@ -40,7 +40,7 @@
 
 	async function loadSession() {
 		loading = true;
-		const sessionId = $page.params.sessionId!;
+		const sessionId = route.params.sessionId!;
 		try {
 			const [sess, entries] = await Promise.all([
 				pb.collection('sessions').getOne<SessionExpanded>(sessionId, { expand: 'workout' }),
@@ -119,7 +119,7 @@
 	}
 
 	$effect(() => {
-		$page.params.sessionId;
+		void route.params.sessionId;
 		loadSession();
 	});
 
@@ -167,15 +167,28 @@
 		flushSave();
 	});
 
-	// Flush any pending saves before navigating away
-	beforeNavigate(() => {
-		flushSave();
-		if (notesSaveTimer) {
-			clearTimeout(notesSaveTimer);
-			notesSaveTimer = null;
-			if (session) pb.collection('sessions').update(session.id, { notes: sessionNotes });
+	// Flush any pending saves before navigating away (or before tab close)
+	$effect(() => blockNavigation({
+		async onNavigate() {
+			await flushSave();
+			if (notesSaveTimer) {
+				clearTimeout(notesSaveTimer);
+				notesSaveTimer = null;
+				if (session) await pb.collection('sessions').update(session.id, { notes: sessionNotes });
+			}
+			return true;
+		},
+		beforeUnload() {
+			// Sync only — fire-and-forget the save attempt
+			flushSave();
+			if (notesSaveTimer && session) {
+				clearTimeout(notesSaveTimer);
+				notesSaveTimer = null;
+				pb.collection('sessions').update(session.id, { notes: sessionNotes });
+			}
+			return true;
 		}
-	});
+	}));
 
 	function handleNotesInput() {
 		if (notesSaveTimer) clearTimeout(notesSaveTimer);
@@ -263,7 +276,7 @@
 	async function finishSession() {
 		if (!session) return;
 		await pb.collection('sessions').update(session.id, { completed: true });
-		await goto('/');
+		await navigate('/');
 	}
 
 	function handleSetDone(entryId: string, setIndex: number) {

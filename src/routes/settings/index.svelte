@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { navigate } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
@@ -9,7 +9,7 @@
 
 	function handleLogout() {
 		authStore.logout();
-		goto('/login');
+		navigate('/');
 	}
 
 	// Notifications

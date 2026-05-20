@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { page } from '$app/stores';
+	import { route } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import type { Exercise, UserExercise, SetData, SessionEntry, Session, Submission } from '$lib/pocketbase/types';
@@ -88,7 +88,7 @@
 	}
 
 	$effect(() => {
-		const id = $page.params.id!;
+		const id = route.params.id!;
 		untrack(() => loadData(id));
 	});
 

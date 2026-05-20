@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { navigate } from 'sv-router/generated';
 	import { pb } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
-	import type { SubmissionExpanded, FeedbackExpanded, User, Exercise, UserExercise } from '$lib/pocketbase/types';
+	import type { SubmissionExpanded, FeedbackExpanded, User } from '$lib/pocketbase/types';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { ChevronLeft, Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from '@lucide/svelte';
 
@@ -17,7 +17,7 @@
 	// Guard: redirect non-admins
 	$effect(() => {
 		if (!authStore.loading && !authStore.isAdmin) {
-			goto('/');
+			navigate('/');
 		}
 	});
 
