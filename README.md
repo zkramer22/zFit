@@ -18,10 +18,14 @@ Mobile-first, gym-first. Built for logging workouts with one hand and sweaty fin
 
 Merging to `main` deploys. The `Deploy` workflow builds the app and force-pushes a single commit to the `deploy` branch containing `pb_public/` (the build) and `pb_hooks/`. A broken build fails the workflow and never reaches the server.
 
-The server's `~/zfit` is a clone of the `deploy` branch with the `pocketbase` binary and `pb_data/` beside the tracked folders. Two launchd agents, installed by `scripts/setup-server.sh`:
+The server's `~/zfit` is a clone of the `deploy` branch with the `pocketbase` binary and `pb_data/` beside the tracked folders. Two launchd daemons, installed by `scripts/setup-server.sh`, run as that user and start at boot without a login (FileVault is off, so a restart needs no one at the machine):
 
 - `com.zfit.pocketbase` serves the API, admin, and app on `127.0.0.1:8080`, where cloudflared's ingress (`/etc/cloudflared/config.yml`) already points.
 - `com.zfit.deploy` fetches the `deploy` branch every 60 seconds and hard-resets `~/zfit` to it. PocketBase serves new files on the next request.
+
+The `Health check` workflow requests `/api/health` every 15 minutes; a failed run emails the owner. GitHub pauses scheduled workflows on public repos after 60 days without commits, and emails before it does.
+
+Remote shell access goes through the same tunnel: `ssh.ztkweb.com` routes to the server's SSH, gated by a Cloudflare Access application (email one-time code). Use the browser terminal at that address, or `ssh` with `ProxyCommand cloudflared access ssh --hostname %h`.
 
 ## Getting Started
 
