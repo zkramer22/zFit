@@ -11,11 +11,11 @@
     <string>./pocketbase</string>
     <string>serve</string>
     <string>--http</string>
-    <string>0.0.0.0:8090</string>
+    <string>127.0.0.1:8080</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>__HOME__/dev/zFit/pocketbase_0</string>
+  <string>__HOME__/zfit</string>
 
   <key>KeepAlive</key>
   <true/>

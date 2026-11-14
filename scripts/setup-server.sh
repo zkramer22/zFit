@@ -1,58 +1,22 @@
 #!/bin/bash
 set -e
 
-cd "$(dirname "$0")/.."
+# Installs zFit's launchd services on the server. Expects ~/zfit to be a
+# clone of the deploy branch with the pocketbase binary and pb_data in it.
 
-REPO_DIR="$(pwd)"
-HOME_DIR="$HOME"
-NODE_PATH="$(which node)"
+cd "$(dirname "$0")"
 
-if [ -z "$NODE_PATH" ]; then
-  echo "Error: node not found in PATH. Make sure Node.js is installed."
-  exit 1
-fi
-
-echo "Setting up zFit launchd services..."
-echo "  Home:    $HOME_DIR"
-echo "  Node:    $NODE_PATH"
-echo "  Repo:    $REPO_DIR"
-echo ""
-
-DEST="$HOME_DIR/Library/LaunchAgents"
+DEST="$HOME/Library/LaunchAgents"
 mkdir -p "$DEST"
 
-PLISTS=(
-  com.zfit.pocketbase
-  com.zfit.app
-  com.zfit.https
-  com.zfit.watcher
-)
-
-# Unload existing services (ignore errors if not loaded)
-for name in "${PLISTS[@]}"; do
+for name in com.zfit.pocketbase com.zfit.deploy; do
   launchctl bootout "gui/$(id -u)/$name" 2>/dev/null || true
-done
-
-# Copy plists with placeholder replacement
-for name in "${PLISTS[@]}"; do
-  sed -e "s|__HOME__|$HOME_DIR|g" \
-      -e "s|__NODE__|$NODE_PATH|g" \
-      "scripts/launchd/$name.plist" > "$DEST/$name.plist"
-  echo "Installed $name.plist"
-done
-
-# Load all services
-for name in "${PLISTS[@]}"; do
+  sed -e "s|__HOME__|$HOME|g" "launchd/$name.plist" > "$DEST/$name.plist"
   launchctl bootstrap "gui/$(id -u)" "$DEST/$name.plist"
   echo "Loaded $name"
 done
 
 echo ""
-echo "All services started. Check status with:"
-echo "  launchctl list | grep zfit"
-echo ""
-echo "View logs:"
-echo "  tail -f ~/Library/Logs/zfit-app.log"
+echo "Logs:"
 echo "  tail -f ~/Library/Logs/zfit-pocketbase.log"
-echo "  tail -f ~/Library/Logs/zfit-https.log"
-echo "  tail -f ~/Library/Logs/zfit-watcher.log"
+echo "  tail -f ~/Library/Logs/zfit-deploy.log"

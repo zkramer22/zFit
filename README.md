@@ -8,11 +8,20 @@ Mobile-first, gym-first. Built for logging workouts with one hand and sweaty fin
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | SvelteKit v2, Svelte 5, TypeScript |
+| Frontend | Vite SPA, Svelte 5, sv-router, TypeScript |
 | Styling | Tailwind CSS v4 |
 | Backend | PocketBase (self-hosted, SQLite-backed) |
-| PWA | @vite-pwa/sveltekit (service worker, manifest, installable) |
-| Runtime | adapter-node (SSR, server-side PB auth) |
+| PWA | vite-plugin-pwa (service worker, manifest, installable) |
+| Hosting | PocketBase serves the built app; Cloudflare Tunnel at zfit.ztkweb.com |
+
+## Deploy
+
+Merging to `main` deploys. The `Deploy` workflow builds the app and force-pushes a single commit to the `deploy` branch containing `pb_public/` (the build) and `pb_hooks/`. A broken build fails the workflow and never reaches the server.
+
+The server's `~/zfit` is a clone of the `deploy` branch with the `pocketbase` binary and `pb_data/` beside the tracked folders. Two launchd agents, installed by `scripts/setup-server.sh`:
+
+- `com.zfit.pocketbase` serves the API, admin, and app on `127.0.0.1:8080`, where cloudflared's ingress (`/etc/cloudflared/config.yml`) already points.
+- `com.zfit.deploy` fetches the `deploy` branch every 60 seconds and hard-resets `~/zfit` to it. PocketBase serves new files on the next request.
 
 ## Getting Started
 
@@ -81,7 +90,7 @@ npm run preview
 
 ## Architecture
 
-**SSR with server-side PocketBase auth.** All PB calls happen in `+page.server.ts` and `+server.ts` files — superuser credentials never reach the browser. The only client-side fetch is the auto-save PATCH for real-time set logging during an active session.
+**Client-side SPA talking to PocketBase directly.** Users sign in with PocketBase auth (email/password or Google), and collection API rules scope every record to its owner. Superuser credentials live only in `.env` for the scripts in `scripts/`.
 
 **Svelte 5 runes only.** Reactive state uses `$state`, `$derived`, `$effect` in `.svelte.ts` files. No legacy stores.
 
