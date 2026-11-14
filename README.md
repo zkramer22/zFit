@@ -20,7 +20,7 @@ Merging to `main` deploys. The `Deploy` workflow builds the app and force-pushes
 
 The server's `~/zfit` is a clone of the `deploy` branch with the `pocketbase` binary and `pb_data/` beside the tracked folders. Two launchd agents, installed by `scripts/setup-server.sh`:
 
-- `com.zfit.pocketbase` serves the API, admin, and app on `127.0.0.1:8090`; cloudflared points the tunnel there.
+- `com.zfit.pocketbase` serves the API, admin, and app on `127.0.0.1:8080`, where cloudflared's ingress (`/etc/cloudflared/config.yml`) already points.
 - `com.zfit.deploy` fetches the `deploy` branch every 60 seconds and hard-resets `~/zfit` to it. PocketBase serves new files on the next request.
 
 ## Getting Started

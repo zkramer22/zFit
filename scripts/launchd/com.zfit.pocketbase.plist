@@ -11,7 +11,7 @@
     <string>./pocketbase</string>
     <string>serve</string>
     <string>--http</string>
-    <string>127.0.0.1:8090</string>
+    <string>127.0.0.1:8080</string>
   </array>
 
   <key>WorkingDirectory</key>
