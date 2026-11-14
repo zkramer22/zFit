@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.zfit.deploy</string>
+
+  <!-- ~/zfit is a clone of the deploy branch. Reset only touches tracked
+       files (pb_public, pb_hooks), so pb_data and the binary are left alone. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>git -C __HOME__/zfit fetch -q origin deploy &amp;&amp; git -C __HOME__/zfit reset -q --hard FETCH_HEAD</string>
+  </array>
+
+  <key>StartInterval</key>
+  <integer>60</integer>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/zfit-deploy.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/zfit-deploy.log</string>
+</dict>
+</plist>

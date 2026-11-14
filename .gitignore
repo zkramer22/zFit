@@ -1,11 +1,5 @@
 node_modules
 
-# pocketbase
-pocketbase_0
-
-# tailscale certs
-certs
-
 # Output
 .output
 .vercel
