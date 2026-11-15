@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
+	import { userExerciseCache } from '$lib/stores/userExerciseCache.svelte';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import { CATEGORIES, MUSCLE_GROUPS } from '$lib/constants';
@@ -15,21 +16,10 @@
 	let showCreateForm = $state(false);
 	let sortAsc = $state(true);
 
-	// Fetch user_exercises to know which canonical exercises have overrides (e.g. added videos)
-	let userExerciseMap = $state<Map<string, UserExercise>>(new Map());
-
-	async function loadUserExercises() {
-		try {
-			const ues = await pb.collection('user_exercises').getFullList<UserExercise>({
-				filter: `user = "${currentUserId()}"`,
-			});
-			userExerciseMap = new Map(ues.map(ue => [ue.exercise, ue]));
-		} catch {
-			userExerciseMap = new Map();
-		}
-	}
-
-	$effect(() => { untrack(() => loadUserExercises()); });
+	// Your copies of shared exercises, to show overrides such as added videos
+	const userExerciseMap = $derived(
+		new Map(userExerciseCache.items.filter(ue => ue.user === authStore.userId).map(ue => [ue.exercise, ue]))
+	);
 
 	/** Get effective video count: user_exercise override if present, else canonical */
 	function videoCount(exerciseId: string, canonicalVideos: any[] | undefined): number {

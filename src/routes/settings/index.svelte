@@ -5,7 +5,7 @@
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { LogOut, Shield, MessageSquare, Bug, Lightbulb, Send, LoaderCircle, ChevronRight, Bell } from '@lucide/svelte';
 	import type { Notification } from '$lib/pocketbase/types';
-	import { notificationStore } from '$lib/stores/notifications.svelte';
+	import { notificationCache, unreadNotificationCount } from '$lib/stores/notifications.svelte';
 
 	function handleLogout() {
 		authStore.logout();
@@ -13,23 +13,13 @@
 	}
 
 	// Notifications
-	let notifications = $state<Notification[]>([]);
+	const notifications = $derived(notificationCache.items);
 	let showNotifications = $state(false);
-
-	async function loadNotifications() {
-		try {
-			notifications = await pb.collection('notifications').getFullList<Notification>({
-				sort: '-created',
-			});
-		} catch { /* ignore if collection doesn't exist yet */ }
-	}
 
 	async function markAsRead(notif: Notification) {
 		if (notif.read) return;
 		try {
 			await pb.collection('notifications').update(notif.id, { read: true });
-			notifications = notifications.map(n => n.id === notif.id ? { ...n, read: true } : n);
-			notificationStore.refresh();
 		} catch { /* ignore */ }
 	}
 
@@ -38,13 +28,9 @@
 		await Promise.all(unread.map(n =>
 			pb.collection('notifications').update(n.id, { read: true }).catch(() => {})
 		));
-		notifications = notifications.map(n => ({ ...n, read: true }));
-		notificationStore.refresh();
 	}
 
-	$effect(() => { loadNotifications(); });
-
-	const unreadCount = $derived(notifications.filter(n => !n.read).length);
+	const unreadCount = $derived(unreadNotificationCount());
 
 	// Feedback form
 	let showFeedback = $state(false);

@@ -1,27 +1,11 @@
-import { pb } from '$lib/pocketbase/client';
+import { createLiveCollection } from '$lib/live/collection.svelte';
+import type { Notification } from '$lib/pocketbase/types';
 
-function createNotificationStore() {
-	let unreadCount = $state(0);
+export const notificationCache = createLiveCollection<Notification>({
+	collection: 'notifications',
+	sort: '-created'
+});
 
-	return {
-		get unreadCount() { return unreadCount; },
-
-		async refresh() {
-			try {
-				const items = await pb.collection('notifications').getFullList({
-					filter: 'read = false',
-					fields: 'id',
-				});
-				unreadCount = items.length;
-			} catch {
-				unreadCount = 0;
-			}
-		},
-
-		clear() {
-			unreadCount = 0;
-		}
-	};
+export function unreadNotificationCount(): number {
+	return notificationCache.items.filter((n) => !n.read).length;
 }
-
-export const notificationStore = createNotificationStore();

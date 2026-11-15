@@ -2,7 +2,7 @@
 	import { route } from 'sv-router/generated';
 	import { untrack } from 'svelte';
 	import { saveScrollPosition, getScrollPosition } from '$lib/stores/scrollPosition.svelte';
-	import { notificationStore } from '$lib/stores/notifications.svelte';
+	import { unreadNotificationCount } from '$lib/stores/notifications.svelte';
 	import { CalendarDays, List, Dumbbell, Settings } from '@lucide/svelte';
 
 	let { children } = $props();
@@ -82,7 +82,7 @@
 					{isActive(item.href, route.pathname) ? 'bg-primary text-text-on-primary' : 'text-text-muted hover:bg-surface-hover'}"
 			>
 				{item.label}
-				{#if item.href === '/settings' && notificationStore.unreadCount > 0}
+				{#if item.href === '/settings' && unreadNotificationCount() > 0}
 					<span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-danger"></span>
 				{/if}
 			</a>
@@ -110,7 +110,7 @@
 					<div class="relative flex items-center justify-center w-14 h-8 rounded-full transition-colors duration-200
 						{active ? 'bg-primary/12' : 'group-active:bg-primary/8'}">
 						<item.icon class="w-5 h-5 shrink-0" />
-						{#if item.href === '/settings' && notificationStore.unreadCount > 0}
+						{#if item.href === '/settings' && unreadNotificationCount() > 0}
 							<span class="absolute top-0 right-2 w-2 h-2 rounded-full bg-primary"></span>
 						{/if}
 					</div>

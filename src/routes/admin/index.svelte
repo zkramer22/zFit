@@ -2,15 +2,26 @@
 	import { navigate } from 'sv-router/generated';
 	import { pb } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
+	import { submissionCache } from '$lib/stores/submissionCache.svelte';
+	import { createLiveQuery } from '$lib/live/query.svelte';
 	import type { SubmissionExpanded, FeedbackExpanded, User } from '$lib/pocketbase/types';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { ChevronLeft, Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from '@lucide/svelte';
 
 	let tab = $state<'submissions' | 'feedback' | 'users'>('submissions');
-	let submissions = $state<SubmissionExpanded[]>([]);
-	let feedbackItems = $state<FeedbackExpanded[]>([]);
-	let users = $state<User[]>([]);
-	let loading = $state(true);
+	const submissions = $derived(submissionCache.items);
+	// Feedback and the user list are admin-only, so they're live only while this page is open.
+	const feedbackQuery = createLiveQuery<FeedbackExpanded>(() => ({
+		collection: 'feedback',
+		sort: '-created',
+		expand: 'user'
+	}));
+	const usersQuery = createLiveQuery<User>(() => ({ collection: 'users', sort: '-created' }));
+	const feedbackItems = $derived(feedbackQuery.items);
+	const users = $derived(usersQuery.items);
+	const loading = $derived(
+		[submissionCache.status, feedbackQuery.status, usersQuery.status].includes('loading')
+	);
 	let processing = $state<string | null>(null);
 
 	// Guard: redirect non-admins
@@ -20,43 +31,6 @@
 		}
 	});
 
-	async function loadSubmissions() {
-		try {
-			submissions = await pb.collection('submissions').getFullList<SubmissionExpanded>({
-				sort: '-created',
-				expand: 'user,exercise,user_exercise',
-			});
-		} catch (err) {
-			console.error('Failed to load submissions:', err);
-		}
-	}
-
-	async function loadFeedback() {
-		try {
-			feedbackItems = await pb.collection('feedback').getFullList<FeedbackExpanded>({
-				sort: '-created',
-				expand: 'user',
-			});
-		} catch (err) {
-			console.error('Failed to load feedback:', err);
-		}
-	}
-
-	async function loadUsers() {
-		try {
-			users = await pb.collection('users').getFullList<User>({ sort: '-created' });
-		} catch (err) {
-			console.error('Failed to load users:', err);
-		}
-	}
-
-	async function loadAll() {
-		loading = true;
-		await Promise.all([loadSubmissions(), loadFeedback(), loadUsers()]);
-		loading = false;
-	}
-
-	$effect(() => { loadAll(); });
 
 	/** Determine if this is a fork submission (has user_exercise + diff) or new exercise proposal */
 	function isForkSubmission(sub: SubmissionExpanded): boolean {
@@ -98,7 +72,6 @@
 				read: false,
 			});
 
-			await loadSubmissions();
 		} catch (err) {
 			console.error('Failed to approve:', err);
 		} finally {
@@ -122,7 +95,6 @@
 				read: false,
 			});
 
-			await loadSubmissions();
 		} catch (err) {
 			console.error('Failed to reject:', err);
 		} finally {
@@ -134,7 +106,6 @@
 		processing = item.id;
 		try {
 			await pb.collection('feedback').update(item.id, { status });
-			await loadFeedback();
 		} catch (err) {
 			console.error('Failed to update feedback:', err);
 		} finally {

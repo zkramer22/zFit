@@ -2,7 +2,6 @@
 	import { Router } from 'sv-router';
 	import { untrack } from 'svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import { notificationStore } from '$lib/stores/notifications.svelte';
 	import { liveStores } from '$lib/stores/liveStores';
 	import { connection } from '$lib/live/connection.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
@@ -31,7 +30,6 @@
 		if (userId) {
 			void connection.start();
 			for (const store of liveStores) store.start();
-			notificationStore.refresh();
 		}
 	}
 
