@@ -2,7 +2,9 @@
 	import { untrack } from 'svelte';
 	import { route } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
-	import type { Exercise, UserExercise, SetData, SessionEntry, Session, Submission } from '$lib/pocketbase/types';
+	import type { Exercise, UserExercise, SessionEntry, Submission } from '$lib/pocketbase/types';
+	import { sessionCache } from '$lib/stores/sessionCache.svelte';
+	import { createLiveQuery } from '$lib/live/query.svelte';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
@@ -10,13 +12,22 @@
 
 	let exercise = $state<Exercise | null>(null);
 	let userExercise = $state<UserExercise | null>(null);
-	let recentHistory = $state<Array<{
-		date: string;
-		sets: SetData[];
-		rpe: number | null;
-		painFlag: boolean;
-		notes: string;
-	}>>([]);
+	const historyQuery = createLiveQuery<SessionEntry>(() => ({
+		collection: 'session_entries',
+		filter: pb.filter('exercise = {:id} && session != ""', { id: route.params.id! })
+	}));
+	// Newest first, dated by the session each entry belongs to
+	const recentHistory = $derived(
+		historyQuery.items
+			.map((entry) => ({
+				date: sessionCache.getById(entry.session)?.date || entry.created,
+				sets: entry.sets,
+				rpe: entry.rpe,
+				painFlag: entry.pain_flag,
+				notes: entry.notes
+			}))
+			.sort((a, b) => b.date.localeCompare(a.date))
+	);
 	let loading = $state(true);
 	let pendingProposal = $state<Submission | null>(null);
 	let proposing = $state(false);
@@ -55,32 +66,6 @@
 			pendingProposal = existing.length > 0 ? existing[0] : null;
 		} catch {
 			pendingProposal = null;
-		}
-
-		// Load session history
-		try {
-			const all = await pb.collection('session_entries').getFullList();
-			const entries = all.filter((e: any) => e.exercise === id && e.session) as SessionEntry[];
-
-			const sessionIds = [...new Set(entries.map((e) => e.session))];
-			const sessionResults = await Promise.all(
-				sessionIds.map((sid) => pb.collection('sessions').getOne<Session>(sid).catch(() => null))
-			);
-			const sessions: Record<string, Session> = {};
-			for (let i = 0; i < sessionIds.length; i++) {
-				if (sessionResults[i]) sessions[sessionIds[i]] = sessionResults[i]!;
-			}
-
-			recentHistory = entries.map((entry) => ({
-				date: sessions[entry.session]?.date || entry.created,
-				sets: entry.sets,
-				rpe: entry.rpe,
-				painFlag: entry.pain_flag,
-				notes: entry.notes
-			}));
-		} catch (err) {
-			console.error('Failed to load exercise history:', err);
-			recentHistory = [];
 		}
 
 		loading = false;

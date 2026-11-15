@@ -1,13 +1,17 @@
 <script lang="ts">
 	import { navigate, route } from 'sv-router/generated';
 	import { blockNavigation } from 'sv-router';
+	import { untrack } from 'svelte';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
-	import type { SessionExpanded, SessionEntryExpanded, WorkoutExerciseExpanded, SetData } from '$lib/pocketbase/types';
+	import { sessionCache } from '$lib/stores/sessionCache.svelte';
+	import { createLiveQuery } from '$lib/live/query.svelte';
+	import { mergeByRecord } from '$lib/live/merge';
+	import type { SessionExpanded, SessionEntry, SessionEntryExpanded, WorkoutExerciseExpanded, SetData } from '$lib/pocketbase/types';
 	import SessionHeader from '$lib/components/SessionHeader.svelte';
 	import SessionExerciseCard from '$lib/components/SessionExerciseCard.svelte';
 	import RestTimer from '$lib/components/RestTimer.svelte';
-	import { sessionStore, type EntryState } from '$lib/stores/session.svelte';
+	import { sessionStore, type EntryState, type SavedEntry } from '$lib/stores/session.svelte';
 	import { restTimerStore } from '$lib/stores/restTimer.svelte';
 	import { countdownTimerStore } from '$lib/stores/countdownTimer.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
@@ -16,16 +20,11 @@
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import type { Exercise } from '$lib/pocketbase/types';
 
-	let loading = $state(true);
-	let session = $state<SessionExpanded | null>(null);
 	let expandedEntry = $state<string | null>(null);
 	let saved = $state(false);
 	let editingHistory = $state(false);
 	let sessionNotes = $state('');
 	let notesSaveTimer: ReturnType<typeof setTimeout> | null = null;
-
-	const isCompleted = $derived(session?.completed === true);
-	const readonly = $derived(isCompleted && !editingHistory);
 
 	const sectionLabels: Record<string, string> = {
 		warmup: 'Warm-Up',
@@ -38,89 +37,105 @@
 		expandedEntry = expandedEntry === entryId ? null : entryId;
 	}
 
-	async function loadSession() {
-		loading = true;
-		const sessionId = route.params.sessionId!;
-		try {
-			const [sess, entries] = await Promise.all([
-				pb.collection('sessions').getOne<SessionExpanded>(sessionId, { expand: 'workout' }),
-				pb.collection('session_entries').getFullList<SessionEntryExpanded>({
-					filter: `session = "${sessionId}"`,
-					sort: 'order',
-					expand: 'exercise'
-				})
-			]);
+	const sessionId = $derived(route.params.sessionId!);
 
-			session = sess;
-			sessionNotes = sess.notes || '';
+	// A session started just before navigating here may not have reached the
+	// sessions store yet, so fetch it directly rather than wait.
+	let fetchedSession = $state<SessionExpanded | null>(null);
+	const session = $derived(sessionCache.getById(sessionId) ?? fetchedSession);
+	const isCompleted = $derived(session?.completed === true);
+	const readonly = $derived(isCompleted && !editingHistory);
+	$effect(() => {
+		const id = sessionId;
+		untrack(() => {
+			fetchedSession = null;
+			if (sessionCache.getById(id)) return;
+			pb.collection('sessions')
+				.getOne<SessionExpanded>(id, { expand: 'workout' })
+				.then((s) => { if (id === sessionId) fetchedSession = s; })
+				.catch((err) => console.error('Failed to load session:', err));
+		});
+	});
 
-			// Load workout exercise targets from cache
-			let targets: Record<string, WorkoutExerciseExpanded> = {};
-			if (sess.workout) {
-				const wes = workoutExerciseCache.items.filter(we => we.workout === sess.workout);
-				for (const we of wes) {
-					targets[we.exercise] = we;
-				}
-			}
+	const entriesQuery = createLiveQuery<SessionEntryExpanded>(() => ({
+		collection: 'session_entries',
+		filter: pb.filter('session = {:id}', { id: sessionId }),
+		sort: 'order',
+		expand: 'exercise'
+	}));
 
-			// Load last session entries for comparison
-			let lastSessionEntries: Record<string, any[]> = {};
-			try {
-				const prevSessions = await pb.collection('sessions').getList(1, 1, {
-					filter: `workout = "${sess.workout}" && id != "${sessionId}"`,
-					sort: '-date'
-				});
-				if (prevSessions.items.length > 0) {
-					const prevEntries = await pb.collection('session_entries').getFullList({
-						filter: `session = "${prevSessions.items[0].id}"`,
-						sort: 'order'
-					});
-					for (const pe of prevEntries) {
-						lastSessionEntries[pe.exercise] = pe.sets || [];
-					}
-				}
-			} catch {
-				// No previous session data available
-			}
+	// "Last time" numbers come from the most recent other session of the same workout.
+	const lastSession = $derived(
+		session?.workout ? sessionCache.items.find((s) => s.workout === session.workout && s.id !== session.id) : undefined
+	);
+	const lastQuery = createLiveQuery<SessionEntry>(() =>
+		lastSession
+			? { collection: 'session_entries', filter: pb.filter('session = {:id}', { id: lastSession.id }), sort: 'order' }
+			: null
+	);
 
-			const entryData: EntryState[] = entries.map((entry) => {
-				const exercise = entry.expand?.exercise;
-				const target = targets[entry.exercise];
-				const lastSets = lastSessionEntries[entry.exercise] || [];
+	const loading = $derived(!session || entriesQuery.status === 'loading');
 
-				return {
-					id: entry.id,
-					exerciseId: entry.exercise,
-					exerciseName: exercise?.name || 'Unknown Exercise',
-					section: target?.section || 'main',
-					order: entry.order,
-					sets: (entry.sets || []).map(s => ({ ...s, completed: s.completed ?? false })),
-					rpe: entry.rpe,
-					painFlag: entry.pain_flag,
-					notes: entry.notes || '',
-					targetSets: target?.target_sets || 0,
-					targetReps: target?.target_reps || '',
-					targetValue: target?.target_value || '',
-					targetUnit: target?.target_unit || 'lb',
-					targetDistance: target?.target_distance || '',
-					targetDistanceUnit: target?.target_distance_unit || null,
-					workoutNotes: target?.notes || '',
-					lastSessionSets: lastSets,
-					dirty: false
-				};
-			});
-
-			sessionStore.init(sess.id, sess.expand?.workout?.name || '', entryData);
-		} catch (err) {
-			console.error('Failed to load session:', err);
-		} finally {
-			loading = false;
-		}
+	function toEntryState(
+		entry: SessionEntryExpanded,
+		targets: Map<string, WorkoutExerciseExpanded>,
+		lastSets: Map<string, SetData[]>,
+		current: EntryState | undefined
+	): EntryState {
+		const target = targets.get(entry.exercise);
+		return {
+			id: entry.id,
+			exerciseId: entry.exercise,
+			exerciseName: entry.expand?.exercise?.name || 'Unknown Exercise',
+			// Entries added mid-session have no target; keep the section they were added to.
+			section: target?.section || current?.section || 'main',
+			order: entry.order,
+			sets: (entry.sets || []).map((s) => ({ ...s, completed: s.completed ?? false })),
+			rpe: entry.rpe,
+			painFlag: entry.pain_flag,
+			notes: entry.notes || '',
+			targetSets: target?.target_sets || 0,
+			targetReps: target?.target_reps || '',
+			targetValue: target?.target_value || '',
+			targetUnit: target?.target_unit || 'lb',
+			targetDistance: target?.target_distance || '',
+			targetDistanceUnit: target?.target_distance_unit || null,
+			workoutNotes: target?.notes || '',
+			lastSessionSets: lastSets.get(entry.exercise) || [],
+			dirty: false
+		};
 	}
 
+	// Keeps the logging store in step with the server: entries you haven't
+	// touched follow live changes, entries with unsaved sets keep yours.
 	$effect(() => {
-		void route.params.sessionId;
-		loadSession();
+		const sess = session;
+		if (!sess || entriesQuery.status === 'loading') return;
+		const targets = new Map(
+			workoutExerciseCache.items.filter((we) => we.workout === sess.workout).map((we) => [we.exercise, we])
+		);
+		const lastSets = new Map(lastQuery.items.map((e) => [e.exercise, e.sets || []]));
+		const serverEntries = entriesQuery.items;
+
+		untrack(() => {
+			const isNewSession = sessionStore.sessionId !== sess.id;
+			const current = new Map(isNewSession ? [] : sessionStore.entries.map((e) => [e.id, e]));
+			const fresh = serverEntries.map((entry) => toEntryState(entry, targets, lastSets, current.get(entry.id)));
+			if (isNewSession) {
+				sessionStore.init(sess.id, sess.expand?.workout?.name || '', fresh);
+				sessionNotes = sess.notes || '';
+			} else {
+				sessionStore.replaceEntries(mergeByRecord(sessionStore.entries, fresh, (e) => e.dirty));
+			}
+		});
+	});
+
+	// Session notes follow live changes unless you're mid-edit.
+	$effect(() => {
+		const notes = session?.notes ?? '';
+		untrack(() => {
+			if (!notesSaveTimer && sessionStore.sessionId === session?.id) sessionNotes = notes;
+		});
 	});
 
 	// Immediate auto-save with minimum "Saving" display time
@@ -136,8 +151,16 @@
 		sessionStore.saving = true;
 		saved = false;
 		const startTime = Date.now();
+		// Copy what's being saved so edits made during the save aren't marked clean.
+		const snapshot: SavedEntry[] = toSave.map((e) => ({
+			id: e.id,
+			sets: $state.snapshot(e.sets),
+			rpe: e.rpe,
+			painFlag: e.painFlag,
+			notes: e.notes
+		}));
 		try {
-			for (const e of toSave) {
+			for (const e of snapshot) {
 				await pb.collection('session_entries').update(e.id, {
 					sets: e.sets,
 					rpe: e.rpe,
@@ -145,7 +168,7 @@
 					notes: e.notes
 				});
 			}
-			sessionStore.markClean(toSave.map((e) => e.id));
+			sessionStore.markSaved(snapshot);
 			// Ensure "Saving" shows for at least MIN_SAVING_MS
 			const elapsed = Date.now() - startTime;
 			if (elapsed < MIN_SAVING_MS) {
@@ -158,6 +181,8 @@
 			sessionStore.saving = false;
 			saveInFlight = false;
 		}
+		// Edits made during this save were skipped by the in-flight guard; save them now.
+		if (saved && sessionStore.dirtyEntries().length > 0) await flushSave();
 	}
 
 	$effect(() => {
