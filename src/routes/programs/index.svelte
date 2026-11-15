@@ -1,44 +1,25 @@
 <script lang="ts">
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
+	import { programCache } from '$lib/stores/programCache.svelte';
+	import { programWorkoutCache } from '$lib/stores/programWorkoutCache.svelte';
 	import type { Program, ProgramWorkoutExpanded, Workout } from '$lib/pocketbase/types';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 
-	let programs = $state<(Program & { workouts: ProgramWorkoutExpanded[] })[]>([]);
-	let loading = $state(true);
 	let showCreateForm = $state(false);
+	const loading = $derived(programCache.status === 'loading');
 
-	async function loadPrograms() {
-		loading = true;
-		try {
-			const [progs, pws] = await Promise.all([
-				pb.collection('programs').getFullList<Program>({ sort: '-active,name' }),
-				pb.collection('program_workouts').getFullList<ProgramWorkoutExpanded>({
-					sort: 'day_number',
-					expand: 'workout'
-				})
-			]);
-
-			// Group program_workouts by program
-			const pwsByProgram = new Map<string, ProgramWorkoutExpanded[]>();
-			for (const pw of pws) {
-				const list = pwsByProgram.get(pw.program) || [];
-				list.push(pw);
-				pwsByProgram.set(pw.program, list);
-			}
-
-			programs = progs.map(p => ({
-				...p,
-				workouts: pwsByProgram.get(p.id) || []
-			}));
-		} catch (err) {
-			console.error('Failed to load programs:', err);
-		} finally {
-			loading = false;
+	// Each program with its days; workout names come from the live workouts
+	// store so a rename shows here too.
+	const programs = $derived.by((): (Program & { workouts: ProgramWorkoutExpanded[] })[] => {
+		const pwsByProgram = new Map<string, ProgramWorkoutExpanded[]>();
+		for (const pw of programWorkoutCache.items) {
+			const list = pwsByProgram.get(pw.program) || [];
+			list.push({ ...pw, expand: { workout: workoutCache.getById(pw.workout) } });
+			pwsByProgram.set(pw.program, list);
 		}
-	}
-
-	$effect(() => { loadPrograms(); });
+		return programCache.items.map(p => ({ ...p, workouts: pwsByProgram.get(p.id) || [] }));
+	});
 
 	async function createProgram(e: SubmitEvent) {
 		e.preventDefault();
@@ -56,13 +37,11 @@
 
 		form.reset();
 		showCreateForm = false;
-		await loadPrograms();
 	}
 
 	async function deleteProgram(programId: string) {
 		if (!confirm('Delete this program?')) return;
 		await pb.collection('programs').delete(programId);
-		await loadPrograms();
 	}
 
 	async function setActive(programId: string) {
@@ -73,12 +52,10 @@
 			}
 		}
 		await pb.collection('programs').update(programId, { active: true });
-		await loadPrograms();
 	}
 
 	async function deactivate(programId: string) {
 		await pb.collection('programs').update(programId, { active: false });
-		await loadPrograms();
 	}
 
 	async function addWorkout(e: SubmitEvent, programId: string) {
@@ -99,12 +76,10 @@
 		});
 
 		form.reset();
-		await loadPrograms();
 	}
 
 	async function removeWorkout(programWorkoutId: string) {
 		await pb.collection('program_workouts').delete(programWorkoutId);
-		await loadPrograms();
 	}
 </script>
 

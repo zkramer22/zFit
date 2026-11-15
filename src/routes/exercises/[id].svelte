@@ -2,16 +2,41 @@
 	import { untrack } from 'svelte';
 	import { route } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
-	import type { Exercise, UserExercise, SessionEntry, Submission } from '$lib/pocketbase/types';
+	import type { Exercise, UserExercise, SessionEntry } from '$lib/pocketbase/types';
 	import { sessionCache } from '$lib/stores/sessionCache.svelte';
+	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
+	import { userExerciseCache } from '$lib/stores/userExerciseCache.svelte';
+	import { submissionCache } from '$lib/stores/submissionCache.svelte';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import { createLiveQuery } from '$lib/live/query.svelte';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 
-	let exercise = $state<Exercise | null>(null);
-	let userExercise = $state<UserExercise | null>(null);
+	const exerciseId = $derived(route.params.id!);
+
+	// An exercise outside the library store (e.g. one just created) is fetched directly.
+	let fetchedExercise = $state<Exercise | null>(null);
+	const exercise = $derived(exerciseCache.getById(exerciseId) ?? fetchedExercise);
+	let isCanonical = $derived(exercise ? !exercise.user : false);
+
+	// Your copy of a shared exercise. One you just created is held here until it reaches the store.
+	let createdUserExercise = $state<UserExercise | null>(null);
+	const userExercise = $derived.by(() => {
+		if (!isCanonical) return null;
+		return (
+			userExerciseCache.items.find(ue => ue.exercise === exerciseId && ue.user === authStore.userId) ??
+			(createdUserExercise?.exercise === exerciseId ? createdUserExercise : null)
+		);
+	});
+
+	const pendingProposal = $derived(
+		submissionCache.items.find(
+			s => s.user === authStore.userId && s.exercise === exerciseId && s.status === 'pending'
+		) ?? null
+	);
+
 	const historyQuery = createLiveQuery<SessionEntry>(() => ({
 		collection: 'session_entries',
 		filter: pb.filter('exercise = {:id} && session != ""', { id: route.params.id! })
@@ -28,52 +53,24 @@
 			}))
 			.sort((a, b) => b.date.localeCompare(a.date))
 	);
-	let loading = $state(true);
-	let pendingProposal = $state<Submission | null>(null);
+	const loading = $derived(!exercise);
 	let proposing = $state(false);
 
 	// Derived display values — overlay user_exercise fields on canonical
 	let displayDescription = $derived(userExercise?.description ?? exercise?.description ?? '');
 	let displayVideoUrls = $derived(userExercise?.video_urls ?? exercise?.video_urls ?? []);
-	let isCanonical = $derived(exercise ? !exercise.user : false);
 	let isCustomized = $derived(!!userExercise);
 
-	async function loadData(id: string) {
-		if (!exercise) loading = true;
-
-		// Always fetch fresh from PB — cache may be stale (e.g. after admin approval changes user field)
-		exercise = await pb.collection('exercises').getOne<Exercise>(id);
-
-		// Load user_exercise overlay for canonical exercises
-		if (!exercise.user) {
-			try {
-				const results = await pb.collection('user_exercises').getFullList<UserExercise>({
-					filter: `exercise = "${id}" && user = "${currentUserId()}"`,
-				});
-				userExercise = results.length > 0 ? results[0] : null;
-			} catch {
-				userExercise = null;
-			}
-		} else {
-			userExercise = null;
-		}
-
-		// Check for pending proposal
-		try {
-			const existing = await pb.collection('submissions').getFullList<Submission>({
-				filter: `user = "${currentUserId()}" && exercise = "${id}" && status = "pending"`,
-			});
-			pendingProposal = existing.length > 0 ? existing[0] : null;
-		} catch {
-			pendingProposal = null;
-		}
-
-		loading = false;
-	}
-
 	$effect(() => {
-		const id = route.params.id!;
-		untrack(() => loadData(id));
+		const id = exerciseId;
+		untrack(() => {
+			fetchedExercise = null;
+			if (exerciseCache.getById(id)) return;
+			pb.collection('exercises')
+				.getOne<Exercise>(id)
+				.then((ex) => { if (id === exerciseId) fetchedExercise = ex; })
+				.catch((err) => console.error('Failed to load exercise:', err));
+		});
 	});
 
 	function formatDate(d: string): string {
@@ -107,7 +104,7 @@
 			description: exercise.description || '',
 			video_urls: exercise.video_urls || [],
 		});
-		userExercise = created;
+		createdUserExercise = created;
 		return created;
 	}
 
@@ -146,11 +143,6 @@
 				reviewer_notes: '',
 			});
 			toastStore.success('Changes proposed to the global library!');
-			// Refresh pending state
-			const existing = await pb.collection('submissions').getFullList<Submission>({
-				filter: `user = "${currentUserId()}" && exercise = "${exercise.id}" && status = "pending"`,
-			});
-			pendingProposal = existing.length > 0 ? existing[0] : null;
 		} catch (err: any) {
 			console.error('Failed to propose changes:', err);
 			toastStore.error('Failed to submit proposal. Please try again.');
@@ -175,10 +167,6 @@
 				reviewer_notes: '',
 			});
 			toastStore.success('Exercise proposed for the global library!');
-			const existing = await pb.collection('submissions').getFullList<Submission>({
-				filter: `user = "${currentUserId()}" && exercise = "${exercise.id}" && status = "pending"`,
-			});
-			pendingProposal = existing.length > 0 ? existing[0] : null;
 		} catch (err: any) {
 			console.error('Failed to propose exercise:', err);
 			toastStore.error('Failed to submit proposal. Please try again.');
@@ -231,8 +219,6 @@
 					description: editDescription,
 				});
 				// Name, category, muscle_groups aren't overridable — they stay on canonical
-				// But we reload to reflect changes
-				userExercise = await pb.collection('user_exercises').getOne<UserExercise>(ue.id);
 			} else {
 				// Editing a user-created exercise → update directly
 				await pb.collection('exercises').update(exercise.id, {
@@ -243,7 +229,6 @@
 				});
 			}
 			editing = false;
-			await loadData(exercise.id);
 		} catch (err: any) {
 			console.error('Failed to update exercise:', err);
 			toastStore.error('Failed to update exercise. Please try again.');
@@ -261,14 +246,12 @@
 				const ue = await ensureUserExercise();
 				const videos = [...(ue.video_urls || []), { url: videoUrl, title: '', thumbnail_url: '' }];
 				await pb.collection('user_exercises').update(ue.id, { video_urls: videos });
-				userExercise = await pb.collection('user_exercises').getOne<UserExercise>(ue.id);
 			} else {
 				const videos = [...(exercise.video_urls || []), { url: videoUrl, title: '', thumbnail_url: '' }];
 				await pb.collection('exercises').update(exercise.id, { video_urls: videos });
 			}
 			videoUrl = '';
 			showAddVideo = false;
-			await loadData(exercise.id);
 		} catch (err: any) {
 			console.error('Failed to save video:', err);
 			toastStore.error('Failed to save video. Please try again.');
@@ -290,13 +273,11 @@
 						const videos = [...(ue.video_urls || [])];
 						videos.splice(index, 1);
 						await pb.collection('user_exercises').update(ue.id, { video_urls: videos });
-						userExercise = await pb.collection('user_exercises').getOne<UserExercise>(ue.id);
 					} else {
 						const videos = [...(exercise!.video_urls || [])];
 						videos.splice(index, 1);
 						await pb.collection('exercises').update(exercise!.id, { video_urls: videos });
 					}
-					await loadData(exercise!.id);
 				} catch (err: any) {
 					console.error('Failed to remove video:', err);
 					toastStore.error('Failed to remove video. Please try again.');
