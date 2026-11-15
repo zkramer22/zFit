@@ -5,7 +5,7 @@
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
-	import type { Workout, Exercise, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
+	import type { Workout, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { dragHandleZone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
@@ -19,7 +19,7 @@
 	import type { SetUnit, DistanceUnit } from '$lib/pocketbase/types';
 
 	let workout = $state<Workout | null>(null);
-	let allExercises = $state<Exercise[]>([]);
+	const allExercises = $derived(exerciseCache.items);
 	let loading = $state(true);
 
 	// Tag editing
@@ -40,7 +40,6 @@
 		try {
 			await pb.collection('workouts').update(workout.id, { tags: editTags });
 			workout.tags = [...editTags];
-			workoutCache.invalidate();
 		} catch (err) {
 			console.error('Failed to save tags:', err);
 		} finally {
@@ -98,21 +97,42 @@
 			.map(s => ({ key: s, label: sectionLabels[s] || s, items: groups[s] }));
 	}
 
+	const workoutId = $derived(route.params.id!);
+	const liveWorkout = $derived(workoutCache.getById(workoutId));
+	const liveExercises = $derived(workoutExerciseCache.items.filter(we => we.workout === workoutId));
+
+	// Outside edit mode the page mirrors the live stores, so changes from
+	// anywhere show up. Edit mode works on its own copy until it ends.
+	$effect(() => {
+		if (editing) return;
+		const w = liveWorkout;
+		if (w) {
+			workout = { ...w };
+			editTags = [...(w.tags || [])];
+		}
+		sections = buildSections(liveExercises);
+	});
+
 	async function loadWorkout(id: string) {
 		loading = true;
 		try {
-			const w = workoutCache.getById(id) ?? await pb.collection('workouts').getOne<Workout>(id);
-			const wes = workoutExerciseCache.items
-				.filter(we => we.workout === id)
-				.sort((a, b) => a.order - b.order);
-			workout = w;
-			allExercises = exerciseCache.items;
-			editTags = [...(w.tags || [])];
-			sections = buildSections(wes);
-
-			// Auto-enter edit mode if ?edit=1 (check non-reactively)
 			const params = new URLSearchParams(window.location.search);
-			if (params.get('edit') === '1') {
+			const startEditing = params.get('edit') === '1';
+
+			// A workout created just before navigating here may not have reached
+			// the stores yet, so fetch it directly rather than wait.
+			if (!workoutCache.getById(id)) {
+				const w = await pb.collection('workouts').getOne<Workout>(id);
+				workout = w;
+				editTags = [...(w.tags || [])];
+			}
+			if (startEditing) {
+				const wes = await pb.collection('workout_exercises').getFullList<WorkoutExerciseExpanded>({
+					filter: pb.filter('workout = {:id}', { id }),
+					sort: 'order',
+					expand: 'exercise'
+				});
+				sections = buildSections(wes);
 				fromSessionId = params.get('fromSession');
 				enterEditMode();
 				history.replaceState({}, '', window.location.pathname);
@@ -125,7 +145,7 @@
 	}
 
 	$effect(() => {
-		const id = route.params.id!;
+		const id = workoutId;
 		untrack(() => loadWorkout(id));
 	});
 
@@ -157,7 +177,6 @@
 			await pb.collection('workouts').update(workout.id, updates);
 			if (updates.name) workout.name = updates.name;
 			if (updates.description !== undefined) workout.description = updates.description;
-			workoutCache.invalidate();
 		}
 		if (fromSessionId) {
 			try {
@@ -270,7 +289,6 @@
 				}
 			}
 			persistOrder();
-			workoutExerciseCache.invalidate();
 		} catch (err) {
 			console.error('Failed to delete exercise:', err);
 		} finally {
@@ -296,7 +314,6 @@
 				{ expand: 'exercise' }
 			);
 			addedIds = [...addedIds, record.id];
-			workoutExerciseCache.invalidate();
 			openTargetEditor(record);
 
 			let section = sections.find(s => s.key === sectionKey);
@@ -368,7 +385,6 @@
 				}
 			}
 			editingTargetId = null;
-			workoutExerciseCache.invalidate();
 		} catch (err) {
 			console.error('Failed to save target:', err);
 		} finally {
@@ -394,8 +410,6 @@
 					await pb.collection('workout_exercises').delete(we.id);
 				}
 				await pb.collection('workouts').delete(w.id);
-				await workoutCache.invalidate();
-				await workoutExerciseCache.invalidate();
 				await navigate('/workouts');
 			}
 		});

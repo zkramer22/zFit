@@ -12,8 +12,6 @@
 	import type { DateValue } from '@internationalized/date';
 	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List, Dumbbell, Eye } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { workoutCache } from '$lib/stores/workoutCache.svelte';
-	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 
 	let activeSessions = $state<SessionExpanded[]>([]);
 	let sessions = $state<SessionExpanded[]>([]);
@@ -205,7 +203,6 @@
 				});
 			}
 
-			await Promise.all([workoutCache.invalidate(), workoutExerciseCache.invalidate()]);
 			await navigate('/workouts/:id', {
 				params: { id: workout.id },
 				search: { edit: '1', fromSession: sess.id }

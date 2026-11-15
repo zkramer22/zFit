@@ -83,7 +83,6 @@
 		form.reset();
 		selectedMuscleGroups = [];
 		showCreateForm = false;
-		await exerciseCache.invalidate();
 	}
 </script>
 
@@ -247,7 +246,7 @@
 	</div>
 
 	<!-- Exercise list -->
-	{#if exerciseCache.loading && !exerciseCache.initialized}
+	{#if exerciseCache.status === 'loading'}
 		<div class="space-y-2">
 			{#each Array(6) as _}
 				<div class="h-16 rounded-xl bg-surface-dim animate-pulse"></div>

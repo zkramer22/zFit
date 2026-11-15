@@ -2,7 +2,6 @@
 	import { untrack } from 'svelte';
 	import { route } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
-	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import type { Exercise, UserExercise, SetData, SessionEntry, Session, Submission } from '$lib/pocketbase/types';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
@@ -257,7 +256,6 @@
 					description: editDescription,
 					muscle_groups: editMuscleGroups
 				});
-				await exerciseCache.invalidate();
 			}
 			editing = false;
 			await loadData(exercise.id);
@@ -282,7 +280,6 @@
 			} else {
 				const videos = [...(exercise.video_urls || []), { url: videoUrl, title: '', thumbnail_url: '' }];
 				await pb.collection('exercises').update(exercise.id, { video_urls: videos });
-				await exerciseCache.invalidate();
 			}
 			videoUrl = '';
 			showAddVideo = false;
@@ -313,7 +310,6 @@
 						const videos = [...(exercise!.video_urls || [])];
 						videos.splice(index, 1);
 						await pb.collection('exercises').update(exercise!.id, { video_urls: videos });
-						await exerciseCache.invalidate();
 					}
 					await loadData(exercise!.id);
 				} catch (err: any) {
