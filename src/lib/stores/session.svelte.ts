@@ -21,6 +21,19 @@ export interface EntryState {
 	dirty: boolean;
 }
 
+/** The fields of an entry that a save writes. */
+export interface SavedEntry {
+	id: string;
+	sets: SetData[];
+	rpe: number | null;
+	painFlag: boolean;
+	notes: string;
+}
+
+export function savedFieldsKey(e: SavedEntry): string {
+	return JSON.stringify([e.sets, e.rpe, e.painFlag, e.notes]);
+}
+
 function createSessionStore() {
 	let entries = $state<EntryState[]>([]);
 	let sessionId = $state<string>('');
@@ -227,6 +240,11 @@ function createSessionStore() {
 			entry.dirty = true;
 		},
 
+		/** Swaps in a merged list, e.g. after live changes, without resetting guided mode or the clock. */
+		replaceEntries(next: EntryState[]) {
+			entries = next;
+		},
+
 		addEntry(entry: EntryState) {
 			entries = [...entries, entry];
 		},
@@ -235,11 +253,17 @@ function createSessionStore() {
 			entries = entries.filter(e => e.id !== entryId);
 		},
 
-		markClean(entryIds: string[]) {
+		/**
+		 * Marks entries clean after a save, but only those not edited again
+		 * while the save was in flight; those stay dirty for the next save.
+		 * Live changes would otherwise replace a "clean" entry with the
+		 * older saved version.
+		 */
+		markSaved(saved: SavedEntry[]) {
+			const byId = new Map(saved.map((s) => [s.id, s]));
 			for (const entry of entries) {
-				if (entryIds.includes(entry.id)) {
-					entry.dirty = false;
-				}
+				const s = byId.get(entry.id);
+				if (s && savedFieldsKey(entry) === savedFieldsKey(s)) entry.dirty = false;
 			}
 		}
 	};

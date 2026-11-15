@@ -2,7 +2,8 @@
 	import { navigate } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
-	import { authStore } from '$lib/stores/auth.svelte';
+	import { sessionCache } from '$lib/stores/sessionCache.svelte';
+	import { createLiveQuery } from '$lib/live/query.svelte';
 	import type { SessionExpanded, SessionEntryExpanded } from '$lib/pocketbase/types';
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import CalendarDayWithDots from '$lib/components/CalendarDayWithDots.svelte';
@@ -13,14 +14,29 @@
 	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List, Dumbbell, Eye } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 
-	let activeSessions = $state<SessionExpanded[]>([]);
-	let sessions = $state<SessionExpanded[]>([]);
-	let allCompleted = $state<SessionExpanded[]>([]);
 	let selectedDate = $state<DateValue | undefined>(today(getLocalTimeZone()));
 	let placeholder = $state<DateValue>(today(getLocalTimeZone()));
 	let expandedSession = $state<string | null>(null);
-	let sessionEntries = $state<Record<string, SessionEntryExpanded[]>>({});
 	let view = $state<'calendar' | 'list'>('calendar');
+
+	const activeSessions = $derived(sessionCache.items.filter(s => !s.completed));
+	const allCompleted = $derived(sessionCache.items.filter(s => s.completed));
+	// Completed sessions in the month the calendar is showing
+	const sessions = $derived.by(() => {
+		const month = `${placeholder.year}-${String(placeholder.month).padStart(2, '0')}`;
+		return allCompleted.filter(s => s.date.startsWith(month));
+	});
+
+	const expandedEntries = createLiveQuery<SessionEntryExpanded>(() =>
+		expandedSession
+			? {
+				collection: 'session_entries',
+				filter: pb.filter('session = {:id}', { id: expandedSession }),
+				sort: 'order',
+				expand: 'exercise'
+			}
+			: null
+	);
 
 	// Map of "YYYY-MM-DD" -> session count for dots
 	let sessionsByDate = $derived.by(() => {
@@ -43,50 +59,6 @@
 		return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
 	}
 
-	async function fetchActiveSessions() {
-		try {
-			activeSessions = await pb.collection('sessions').getFullList<SessionExpanded>({
-				filter: 'completed != true',
-				sort: '-date',
-				expand: 'workout'
-			});
-		} catch (err) {
-			console.error('Failed to load active sessions:', err);
-			activeSessions = [];
-		}
-	}
-
-	async function fetchSessions(month: DateValue) {
-		try {
-			const startDate = `${month.year}-${String(month.month).padStart(2, '0')}-01`;
-			const endMonth = month.month === 12 ? 1 : month.month + 1;
-			const endYear = month.month === 12 ? month.year + 1 : month.year;
-			const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
-
-			sessions = await pb.collection('sessions').getFullList<SessionExpanded>({
-				filter: `completed = true && date >= "${startDate}" && date < "${endDate}"`,
-				sort: '-date',
-				expand: 'workout'
-			});
-		} catch (err) {
-			console.error('Failed to load sessions:', err);
-			sessions = [];
-		}
-	}
-
-	async function fetchAllCompleted() {
-		try {
-			allCompleted = await pb.collection('sessions').getFullList<SessionExpanded>({
-				filter: 'completed = true',
-				sort: '-date',
-				expand: 'workout'
-			});
-		} catch (err) {
-			console.error('Failed to load completed sessions:', err);
-			allCompleted = [];
-		}
-	}
-
 	function promptDeleteSession(sess: SessionExpanded) {
 		dialogStore.confirm({
 			title: 'Delete session?',
@@ -102,52 +74,13 @@
 					await pb.collection('session_entries').delete(entry.id);
 				}
 				await pb.collection('sessions').delete(sess.id);
-				activeSessions = activeSessions.filter(s => s.id !== sess.id);
-				sessions = sessions.filter(s => s.id !== sess.id);
-				allCompleted = allCompleted.filter(s => s.id !== sess.id);
 				expandedSession = null;
 			}
 		});
 	}
 
-	// Fetch once auth is ready; re-fire when month changes
-	$effect(() => {
-		if (!authStore.isAuthenticated) return;
-		fetchActiveSessions();
-	});
-
-	$effect(() => {
-		if (!authStore.isAuthenticated) return;
-		fetchSessions(placeholder);
-	});
-
-	$effect(() => {
-		if (!authStore.isAuthenticated || view !== 'list') return;
-		fetchAllCompleted();
-	});
-
-	async function toggleSession(sessionId: string) {
-		if (expandedSession === sessionId) {
-			expandedSession = null;
-			return;
-		}
-		expandedSession = sessionId;
-		if (!sessionEntries[sessionId]) {
-			try {
-				const entries = await pb.collection('session_entries').getFullList<SessionEntryExpanded>({
-					filter: `session = "${sessionId}"`,
-					sort: 'order',
-					expand: 'exercise'
-				});
-				sessionEntries = { ...sessionEntries, [sessionId]: entries };
-			} catch {
-				const all = await pb.collection('session_entries').getFullList<SessionEntryExpanded>({
-					sort: 'order',
-					expand: 'exercise'
-				});
-				sessionEntries = { ...sessionEntries, [sessionId]: all.filter(e => e.session === sessionId) };
-			}
-		}
+	function toggleSession(sessionId: string) {
+		expandedSession = expandedSession === sessionId ? null : sessionId;
 	}
 
 	function handleValueChange(val: DateValue | DateValue[] | undefined) {
@@ -172,8 +105,8 @@
 		if (creatingWorkout) return;
 		creatingWorkout = true;
 		try {
-			const entries = sessionEntries[sess.id] || await pb.collection('session_entries').getFullList<SessionEntryExpanded>({
-				filter: `session = "${sess.id}"`,
+			const entries = await pb.collection('session_entries').getFullList<SessionEntryExpanded>({
+				filter: pb.filter('session = {:id}', { id: sess.id }),
 				sort: 'order',
 				expand: 'exercise'
 			});
@@ -393,8 +326,8 @@
 				{#if sess.notes}
 					<p class="text-xs text-text-muted italic">{sess.notes}</p>
 				{/if}
-				{#if sessionEntries[sess.id]?.length}
-					{#each sessionEntries[sess.id] as entry}
+				{#if isOpen && expandedEntries.items.length}
+					{#each expandedEntries.items as entry (entry.id)}
 						<div class="p-2.5 rounded-lg bg-surface-dim">
 							<div class="flex items-center justify-between mb-1">
 								<Button variant="link" size="sm" href="/exercises/{entry.exercise}" class="h-auto p-0 text-sm font-medium text-text no-underline hover:underline">{entry.expand?.exercise?.name || 'Unknown'}</Button>
@@ -452,7 +385,7 @@
 							{/if}
 						</button>
 					{/if}
-				{:else if isOpen}
+				{:else if isOpen && expandedEntries.status === 'loading'}
 					<div class="flex justify-center py-3">
 						<LoaderCircle class="w-5 h-5 animate-spin text-primary" />
 					</div>
