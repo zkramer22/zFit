@@ -113,7 +113,6 @@
 
 		selectedTags = [];
 		showCreateForm = false;
-		await workoutCache.invalidate();
 		await navigate('/workouts/:id', {
 			params: { id: record.id },
 			search: { edit: '1' }
@@ -134,8 +133,6 @@
 					await pb.collection('workout_exercises').delete(we.id);
 				}
 				await pb.collection('workouts').delete(workout.id);
-				await workoutCache.invalidate();
-				await workoutExerciseCache.invalidate();
 			}
 		});
 	}
@@ -333,7 +330,7 @@
 	</div>
 
 	<!-- Workout list -->
-	{#if workoutCache.loading && !workoutCache.initialized}
+	{#if workoutCache.status === 'loading'}
 		<div class="space-y-2">
 			{#each Array(6) as _}
 				<div class="h-20 rounded-xl bg-surface-dim animate-pulse"></div>

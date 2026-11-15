@@ -1,7 +1,7 @@
-import { createCacheStore } from './createCacheStore.svelte';
+import { createLiveCollection } from '$lib/live/collection.svelte';
 import type { Workout } from '$lib/pocketbase/types';
 
-export const workoutCache = createCacheStore<Workout>({
+export const workoutCache = createLiveCollection<Workout>({
 	collection: 'workouts',
 	sort: 'name'
 });

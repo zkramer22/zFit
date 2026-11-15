@@ -2,7 +2,6 @@
 	import { navigate } from 'sv-router/generated';
 	import { pb } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import type { SubmissionExpanded, FeedbackExpanded, User } from '$lib/pocketbase/types';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 	import { ChevronLeft, Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from '@lucide/svelte';
@@ -90,7 +89,6 @@
 			}
 
 			await pb.collection('submissions').update(sub.id, { status: 'approved' });
-			await exerciseCache.invalidate();
 
 			await pb.collection('notifications').create({
 				user: sub.user,

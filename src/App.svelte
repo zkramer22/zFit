@@ -3,9 +3,8 @@
 	import { untrack } from 'svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { notificationStore } from '$lib/stores/notifications.svelte';
-	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
-	import { workoutCache } from '$lib/stores/workoutCache.svelte';
-	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
+	import { liveStores } from '$lib/stores/liveStores';
+	import { connection } from '$lib/live/connection.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -17,27 +16,28 @@
 		untrack(() => authStore.init());
 	});
 
-	// Reset and initialize caches when user changes
-	let lastCacheUserId = '';
-	$effect(() => {
-		const userId = authStore.userId;
-		const authenticated = authStore.isAuthenticated;
-		if (authenticated) {
-			if (lastCacheUserId && lastCacheUserId !== userId) {
-				untrack(() => {
-					exerciseCache.reset();
-					workoutCache.reset();
-					workoutExerciseCache.reset();
-				});
-			}
-			lastCacheUserId = userId;
-			untrack(() => {
-				exerciseCache.init();
-				workoutCache.init();
-				workoutExerciseCache.init();
-				notificationStore.refresh();
-			});
+	// Live data follows the signed-in user. Switching users or logging out
+	// stops every listener and drops the previous user's data, because the
+	// realtime stream is authorized as whoever subscribed.
+	let liveUserId = '';
+	async function switchLiveUser(userId: string) {
+		if (userId === liveUserId) return;
+		const previous = liveUserId;
+		liveUserId = userId;
+		if (previous) {
+			await Promise.all(liveStores.map((store) => store.reset()));
+			await connection.stop();
 		}
+		if (userId) {
+			void connection.start();
+			for (const store of liveStores) store.start();
+			notificationStore.refresh();
+		}
+	}
+
+	$effect(() => {
+		const userId = authStore.isAuthenticated ? authStore.userId : '';
+		untrack(() => void switchLiveUser(userId));
 	});
 </script>
 
