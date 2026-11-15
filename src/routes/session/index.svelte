@@ -2,7 +2,8 @@
 	import { navigate, route } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
-	import type { SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
+	import { setsFromTarget, targetOf } from '$lib/measure';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { LoaderCircle, ChevronLeft } from '@lucide/svelte';
 
@@ -29,22 +30,7 @@
 				expand: 'exercise'
 			});
 			for (const we of wes) {
-				const numSets = we.target_sets || 1;
-				const reps = we.target_reps ? parseInt(we.target_reps, 10) || null : null;
-				const value = we.target_value ? parseFloat(we.target_value) || null : null;
-				const unit: SetUnit = we.target_unit || 'lb';
-				const distance = we.target_distance ? parseFloat(we.target_distance) || null : null;
-				const distanceUnit: DistanceUnit | null = we.target_distance_unit || null;
-
-				const sets: SetData[] = Array.from({ length: numSets }, () => ({
-					reps,
-					value: unit === 'bw' || unit === 'band' ? null : value,
-					unit,
-					distance,
-					distance_unit: distanceUnit,
-					notes: '',
-					completed: false
-				}));
+				const sets = setsFromTarget(targetOf(we), we.expand?.exercise?.measure || 'weight', authStore.weightUnit);
 
 				await pb.collection('session_entries').create({
 					user: currentUserId(),

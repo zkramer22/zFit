@@ -1,4 +1,6 @@
-import type { SessionEntryExpanded, SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
+import type { SetData, Measure, TargetFields } from '$lib/pocketbase/types';
+import { emptySet } from '$lib/measure';
+import { authStore } from '$lib/stores/auth.svelte';
 
 export interface EntryState {
 	id: string;
@@ -10,12 +12,8 @@ export interface EntryState {
 	rpe: number | null;
 	painFlag: boolean;
 	notes: string;
-	targetSets: number;
-	targetReps: string;
-	targetValue: string;
-	targetUnit: SetUnit;
-	targetDistance: string;
-	targetDistanceUnit: DistanceUnit | null;
+	measure: Measure;
+	target: TargetFields;
 	workoutNotes: string;
 	lastSessionSets: SetData[];
 	dirty: boolean;
@@ -79,7 +77,7 @@ function createSessionStore() {
 			exercise: guidedExerciseIndex + 1,
 			totalExercises: flat.length,
 			set: guidedSetIndex + 1,
-			totalSets: entry.targetSets || entry.sets.length || 1
+			totalSets: entry.target.target_sets || entry.sets.length || 1
 		};
 	});
 
@@ -129,7 +127,7 @@ function createSessionStore() {
 			const entry = flat[guidedExerciseIndex];
 			if (!entry) return;
 
-			const maxSets = entry.targetSets || entry.sets.length;
+			const maxSets = entry.target.target_sets || entry.sets.length;
 			if (guidedSetIndex < maxSets - 1) {
 				guidedSetIndex++;
 			} else if (guidedExerciseIndex < flat.length - 1) {
@@ -146,7 +144,7 @@ function createSessionStore() {
 				guidedExerciseIndex--;
 				const flat = flatEntries();
 				const prevEntry = flat[guidedExerciseIndex];
-				guidedSetIndex = Math.max(0, (prevEntry?.targetSets || prevEntry?.sets.length || 1) - 1);
+				guidedSetIndex = Math.max(0, (prevEntry?.target.target_sets || prevEntry?.sets.length || 1) - 1);
 			}
 		},
 
@@ -173,7 +171,7 @@ function createSessionStore() {
 			const lastSet = entry.sets[entry.sets.length - 1];
 			const newSet: SetData = lastSet
 				? { ...lastSet, notes: '', completed: false }
-				: { reps: null, value: null, unit: entry.targetUnit || 'lb', distance: null, distance_unit: null, notes: '', completed: false };
+				: emptySet(entry.measure, authStore.weightUnit);
 
 			entry.sets = [...entry.sets, newSet];
 			entry.dirty = true;

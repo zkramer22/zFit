@@ -3,13 +3,42 @@
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import { LogOut, Shield, MessageSquare, Bug, Lightbulb, Send, LoaderCircle, ChevronRight, Bell } from '@lucide/svelte';
-	import type { Notification } from '$lib/pocketbase/types';
+	import { LogOut, Shield, MessageSquare, Bug, Lightbulb, Send, LoaderCircle, ChevronRight, ChevronUp, Bell, X } from '@lucide/svelte';
+	import { SelectButton } from '$lib/components/ui/select-button';
+	import { WEIGHT_UNITS } from '$lib/constants';
+	import { toastStore } from '$lib/stores/toast.svelte';
+	import type { Notification, WeightUnit } from '$lib/pocketbase/types';
 	import { notificationStore } from '$lib/stores/notifications.svelte';
 
 	function handleLogout() {
 		authStore.logout();
 		navigate('/');
+	}
+
+	// Training
+	let newBand = $state('');
+
+	async function saveSettings(data: Parameters<typeof authStore.updateSettings>[0]) {
+		try {
+			await authStore.updateSettings(data);
+		} catch (err) {
+			console.error('Failed to save settings:', err);
+			toastStore.error('Failed to save. Please try again.');
+		}
+	}
+
+	function addBand(e: SubmitEvent) {
+		e.preventDefault();
+		const name = newBand.trim();
+		if (!name || authStore.bandLevels.includes(name)) return;
+		saveSettings({ band_levels: [...authStore.bandLevels, name] });
+		newBand = '';
+	}
+
+	function moveBandUp(i: number) {
+		const bands = [...authStore.bandLevels];
+		[bands[i - 1], bands[i]] = [bands[i], bands[i - 1]];
+		saveSettings({ band_levels: bands });
 	}
 
 	// Notifications
@@ -95,6 +124,37 @@
 				{/if}
 				<p class="text-sm text-text-muted">{authStore.user?.email}</p>
 			</div>
+		</div>
+	</section>
+
+	<!-- Training -->
+	<section class="rounded-xl border border-border bg-surface p-4 mb-4 space-y-4">
+		<h2 class="text-sm font-medium text-text-muted">Training</h2>
+		<div>
+			<span class="block text-sm font-medium mb-1">Weight unit</span>
+			<SelectButton options={WEIGHT_UNITS} value={authStore.weightUnit} onchange={(v) => saveSettings({ weight_unit: v as WeightUnit })} />
+		</div>
+		<div>
+			<span class="block text-sm font-medium mb-1">Bands, lightest first</span>
+			{#if authStore.bandLevels.length}
+				<ul class="mb-2 divide-y divide-border rounded-lg border border-border">
+					{#each authStore.bandLevels as band, i (band)}
+						<li class="flex items-center gap-2 px-3 py-1.5 text-sm">
+							<span class="flex-1">{band}</span>
+							<button type="button" onclick={() => moveBandUp(i)} disabled={i === 0} class="p-1 rounded text-text-muted hover:text-primary disabled:opacity-30" aria-label="Move {band} lighter">
+								<ChevronUp class="w-4 h-4" />
+							</button>
+							<button type="button" onclick={() => saveSettings({ band_levels: authStore.bandLevels.filter((b) => b !== band) })} class="p-1 rounded text-text-muted hover:text-red-500" aria-label="Remove {band}">
+								<X class="w-4 h-4" />
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			<form onsubmit={addBand} class="flex gap-2">
+				<input type="text" bind:value={newBand} placeholder="e.g. Red" class="flex-1 px-3 py-1.5 rounded-lg border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+				<button type="submit" disabled={!newBand.trim()} class="px-3 py-1.5 rounded-lg text-sm font-medium bg-primary text-text-on-primary hover:bg-primary/90 transition-colors disabled:opacity-50">Add</button>
+			</form>
 		</div>
 	</section>
 

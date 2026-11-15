@@ -1,5 +1,5 @@
 import { pb } from '$lib/pocketbase/client';
-import type { User } from '$lib/pocketbase/types';
+import type { User, WeightUnit } from '$lib/pocketbase/types';
 
 // Users with admin access (can approve submissions, manage feedback)
 const ADMIN_USER_IDS = ['lxd00dcz55rt9lh'];
@@ -31,6 +31,15 @@ function createAuthStore() {
 		get isAuthenticated() { return !!user; },
 		get userId() { return user?.id ?? ''; },
 		get isAdmin() { return !!user && ADMIN_USER_IDS.includes(user.id); },
+		get weightUnit(): WeightUnit { return user?.weight_unit || 'lb'; },
+		get bandLevels(): string[] { return user?.band_levels ?? []; },
+
+		/** Saves profile settings and refreshes the stored auth record. */
+		async updateSettings(data: Partial<Pick<User, 'weight_unit' | 'band_levels'>>) {
+			if (!user) return;
+			const updated = await pb.collection('users').update<User>(user.id, data);
+			pb.authStore.save(pb.authStore.token, updated);
+		},
 
 		init() {
 			// PocketBase SDK auto-loads token from localStorage

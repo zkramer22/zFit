@@ -2,6 +2,7 @@
 	import type { EntryState } from '$lib/stores/session.svelte';
 	import type { SetData } from '$lib/pocketbase/types';
 	import { formatTarget, formatSets, formatSetsSummary } from '$lib/utils/format';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import SlideReveal from './SlideReveal.svelte';
 	import SetRow from './SetRow.svelte';
 
@@ -34,17 +35,10 @@
 	}
 
 	const targetSummary = $derived(() => {
-		const target = formatTarget({
-			target_sets: entry.targetSets,
-			target_reps: entry.targetReps,
-			target_value: entry.targetValue,
-			target_unit: entry.targetUnit,
-			target_distance: entry.targetDistance,
-			target_distance_unit: entry.targetDistanceUnit
-		});
+		const target = formatTarget(entry.target, entry.measure, authStore.weightUnit);
 		if (target) return target;
 		// Fallback: compact summary of actual logged sets
-		if (entry.sets.length > 0) return formatSetsSummary(entry.sets);
+		if (entry.sets.length > 0) return formatSetsSummary(entry.sets, entry.measure);
 		return '';
 	});
 
@@ -52,7 +46,7 @@
 
 	const lastSessionPreview = $derived(() => {
 		if (!entry.lastSessionSets?.length) return '';
-		return formatSets(entry.lastSessionSets);
+		return formatSets(entry.lastSessionSets, entry.measure);
 	});
 </script>
 
@@ -98,6 +92,8 @@
 					<SetRow
 						index={i}
 						{set}
+						measure={entry.measure}
+						bandLevels={authStore.bandLevels}
 						{readonly}
 						done={set.completed}
 						timerRunning={countdownSetIndex === i}

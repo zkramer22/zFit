@@ -4,11 +4,14 @@
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
-	import { CATEGORIES, MUSCLE_GROUPS } from '$lib/constants';
+	import { CATEGORIES, MUSCLE_GROUPS, MEASURES } from '$lib/constants';
+	import { SelectButton } from '$lib/components/ui/select-button';
 	import ArrowUpNarrowWide from '@lucide/svelte/icons/arrow-up-narrow-wide';
 	import ArrowDownNarrowWide from '@lucide/svelte/icons/arrow-down-narrow-wide';
 	import AlphabetScroller from '$lib/components/AlphabetScroller.svelte';
-	import type { UserExercise } from '$lib/pocketbase/types';
+	import type { UserExercise, Measure } from '$lib/pocketbase/types';
+
+	let newMeasure = $state<Measure>('weight');
 
 	let searchQuery = $state('');
 	let activeCategory = $state('');
@@ -77,11 +80,13 @@
 			category: formData.get('category') || 'strength',
 			description: formData.get('description') || '',
 			muscle_groups: formData.getAll('muscle_groups'),
-			video_urls: []
+			video_urls: [],
+			measure: newMeasure
 		});
 
 		form.reset();
 		selectedMuscleGroups = [];
+		newMeasure = 'weight';
 		showCreateForm = false;
 		await exerciseCache.invalidate();
 	}
@@ -157,6 +162,10 @@
 							<option value={cat.value}>{cat.label}</option>
 						{/each}
 					</select>
+				</div>
+				<div>
+					<span class="block text-sm font-medium mb-1">Measure</span>
+					<SelectButton options={MEASURES} value={newMeasure} onchange={(v) => newMeasure = v as Measure} />
 				</div>
 				<div>
 					<label class="block text-sm font-medium mb-1">Muscle Groups</label>
