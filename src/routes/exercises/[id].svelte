@@ -8,6 +8,8 @@
 	import { userExerciseCache } from '$lib/stores/userExerciseCache.svelte';
 	import { submissionCache } from '$lib/stores/submissionCache.svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
+	import { mergeForm } from '$lib/live/merge';
+	import ConflictNotice from '$lib/components/ConflictNotice.svelte';
 	import { createLiveQuery } from '$lib/live/query.svelte';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
@@ -187,17 +189,66 @@
 	let editDescription = $state('');
 	let editMuscleGroups = $state<string[]>([]);
 
+	type ExerciseForm = { name: string; category: string; description: string; muscle_groups: string[] };
+
+	function formOf(ex: Exercise): ExerciseForm {
+		return {
+			name: ex.name,
+			category: ex.category,
+			description: isCanonical ? displayDescription : (ex.description || ''),
+			muscle_groups: [...(ex.muscle_groups || [])]
+		};
+	}
+
+	function applyForm(form: ExerciseForm) {
+		editName = form.name;
+		editCategory = form.category;
+		editDescription = form.description;
+		editMuscleGroups = [...form.muscle_groups];
+	}
+
+	// The server's version the form started from, and whether it changed elsewhere since you edited.
+	let formBase = $state<ExerciseForm | null>(null);
+	let formConflict = $state(false);
+
 	function enterEditMode() {
 		if (!exercise) return;
-		editName = exercise.name;
-		editCategory = exercise.category;
-		editDescription = isCanonical ? displayDescription : (exercise.description || '');
-		editMuscleGroups = [...(exercise.muscle_groups || [])];
+		formBase = formOf(exercise);
+		formConflict = false;
+		applyForm(formBase);
 		editing = true;
 	}
 
 	function cancelEdit() {
 		editing = false;
+	}
+
+	// Untouched, the form follows live changes; once you've changed it, yours
+	// is kept and flagged if the exercise changed elsewhere.
+	$effect(() => {
+		if (!editing || !exercise) return;
+		const server = formOf(exercise);
+		untrack(() => {
+			if (!formBase) return;
+			const next = mergeForm(
+				{
+					draft: { name: editName, category: editCategory, description: editDescription, muscle_groups: editMuscleGroups },
+					base: formBase,
+					conflict: formConflict
+				},
+				server
+			);
+			applyForm(next.draft);
+			formBase = next.base;
+			formConflict = next.conflict;
+		});
+	});
+
+	function useTheirsForForm() {
+		if (!exercise) return;
+		formBase = formOf(exercise);
+		applyForm(formBase);
+		formConflict = false;
 	}
 
 	function toggleEditMuscleGroup(mg: string) {
@@ -345,6 +396,9 @@
 		{#if editing}
 			<form onsubmit={updateExercise}>
 				<div class="space-y-4 mb-6">
+					{#if formConflict}
+						<ConflictNotice conflict="changed" onusetheirs={useTheirsForForm} />
+					{/if}
 					{#if !isCanonical}
 						<!-- Only user-created exercises can edit name/category/muscle_groups -->
 						<div>

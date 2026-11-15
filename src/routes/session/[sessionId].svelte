@@ -6,7 +6,9 @@
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import { sessionCache } from '$lib/stores/sessionCache.svelte';
 	import { createLiveQuery } from '$lib/live/query.svelte';
-	import { mergeByRecord } from '$lib/live/merge';
+	import { mergeTracked, takeTheirs } from '$lib/live/merge';
+	import { ClientResponseError } from 'pocketbase';
+	import ConflictNotice from '$lib/components/ConflictNotice.svelte';
 	import type { SessionExpanded, SessionEntry, SessionEntryExpanded, WorkoutExerciseExpanded, SetData } from '$lib/pocketbase/types';
 	import SessionHeader from '$lib/components/SessionHeader.svelte';
 	import SessionExerciseCard from '$lib/components/SessionExerciseCard.svelte';
@@ -102,33 +104,51 @@
 			targetDistanceUnit: target?.target_distance_unit || null,
 			workoutNotes: target?.notes || '',
 			lastSessionSets: lastSets.get(entry.exercise) || [],
-			dirty: false
+			dirty: false,
+			saving: false,
+			baseUpdated: entry.updated,
+			conflict: null
 		};
 	}
 
-	// Keeps the logging store in step with the server: entries you haven't
-	// touched follow live changes, entries with unsaved sets keep yours.
-	$effect(() => {
-		const sess = session;
-		if (!sess || entriesQuery.status === 'loading') return;
+	/** The server's entries for this session, in the shape the logging store uses. */
+	function serverEntryStates(sess: SessionExpanded, current: Map<string, EntryState>): EntryState[] {
 		const targets = new Map(
 			workoutExerciseCache.items.filter((we) => we.workout === sess.workout).map((we) => [we.exercise, we])
 		);
 		const lastSets = new Map(lastQuery.items.map((e) => [e.exercise, e.sets || []]));
-		const serverEntries = entriesQuery.items;
+		return entriesQuery.items.map((entry) => toEntryState(entry, targets, lastSets, current.get(entry.id)));
+	}
+
+	// Keeps the logging store in step with the server: entries you haven't
+	// touched follow live changes, entries with unsaved sets keep yours and
+	// are flagged if the server's copy changed or was deleted.
+	$effect(() => {
+		const sess = session;
+		if (!sess || entriesQuery.status === 'loading') return;
+		// Read what the merge depends on so it reruns when any of it changes.
+		void entriesQuery.items;
+		void lastQuery.items;
+		void workoutExerciseCache.items;
 
 		untrack(() => {
 			const isNewSession = sessionStore.sessionId !== sess.id;
 			const current = new Map(isNewSession ? [] : sessionStore.entries.map((e) => [e.id, e]));
-			const fresh = serverEntries.map((entry) => toEntryState(entry, targets, lastSets, current.get(entry.id)));
+			const fresh = serverEntryStates(sess, current);
 			if (isNewSession) {
 				sessionStore.init(sess.id, sess.expand?.workout?.name || '', fresh);
 				sessionNotes = sess.notes || '';
 			} else {
-				sessionStore.replaceEntries(mergeByRecord(sessionStore.entries, fresh, (e) => e.dirty));
+				sessionStore.replaceEntries(mergeTracked(sessionStore.entries, fresh));
 			}
 		});
 	});
+
+	function useTheirs(entryId: string) {
+		if (!session) return;
+		const current = new Map(sessionStore.entries.map((e) => [e.id, e]));
+		sessionStore.replaceEntries(takeTheirs(sessionStore.entries, serverEntryStates(session, current), entryId));
+	}
 
 	// Session notes follow live changes unless you're mid-edit.
 	$effect(() => {
@@ -142,8 +162,27 @@
 	const MIN_SAVING_MS = 600;
 	let saveInFlight = false;
 
-	async function flushSave() {
-		const toSave = sessionStore.dirtyEntries();
+	/** Saves one entry. One deleted elsewhere while you were editing it is brought back, since saving keeps yours. */
+	async function saveEntry(e: SavedEntry): Promise<{ id: string; updated: string }> {
+		const fields = { sets: e.sets, rpe: e.rpe, pain_flag: e.painFlag, notes: e.notes };
+		try {
+			return await pb.collection('session_entries').update(e.id, fields);
+		} catch (err) {
+			const entry = sessionStore.entries.find((x) => x.id === e.id);
+			if (!(err instanceof ClientResponseError && err.status === 404) || !entry || !session) throw err;
+			return await pb.collection('session_entries').create({
+				user: currentUserId(),
+				session: session.id,
+				exercise: entry.exerciseId,
+				order: entry.order,
+				...fields
+			});
+		}
+	}
+
+	/** `includeConflicts` saves entries flagged as changed elsewhere too, keeping yours, e.g. when leaving the page. */
+	async function flushSave(includeConflicts = false) {
+		const toSave = sessionStore.entries.filter((e) => e.dirty && !e.saving && (includeConflicts || !e.conflict));
 		if (toSave.length === 0) return;
 		if (saveInFlight) return;
 
@@ -159,16 +198,11 @@
 			painFlag: e.painFlag,
 			notes: e.notes
 		}));
+		sessionStore.markSaving(snapshot.map((e) => e.id));
 		try {
 			for (const e of snapshot) {
-				await pb.collection('session_entries').update(e.id, {
-					sets: e.sets,
-					rpe: e.rpe,
-					pain_flag: e.painFlag,
-					notes: e.notes
-				});
+				sessionStore.markSaved(e, await saveEntry(e));
 			}
-			sessionStore.markSaved(snapshot);
 			// Ensure "Saving" shows for at least MIN_SAVING_MS
 			const elapsed = Date.now() - startTime;
 			if (elapsed < MIN_SAVING_MS) {
@@ -177,6 +211,7 @@
 			saved = true;
 		} catch (err) {
 			console.error('Auto-save failed:', err);
+			sessionStore.markSaveFailed(snapshot.map((e) => e.id));
 		} finally {
 			sessionStore.saving = false;
 			saveInFlight = false;
@@ -195,7 +230,7 @@
 	// Flush any pending saves before navigating away (or before tab close)
 	$effect(() => blockNavigation({
 		async onNavigate() {
-			await flushSave();
+			await flushSave(true);
 			if (notesSaveTimer) {
 				clearTimeout(notesSaveTimer);
 				notesSaveTimer = null;
@@ -205,7 +240,7 @@
 		},
 		beforeUnload() {
 			// Sync only — fire-and-forget the save attempt
-			flushSave();
+			flushSave(true);
 			if (notesSaveTimer && session) {
 				clearTimeout(notesSaveTimer);
 				notesSaveTimer = null;
@@ -277,7 +312,10 @@
 			targetDistanceUnit: null,
 			workoutNotes: '',
 			lastSessionSets: [],
-			dirty: false
+			dirty: false,
+			saving: false,
+			baseUpdated: newEntry.updated,
+			conflict: null
 		});
 
 		addingToSection = null;
@@ -413,6 +451,11 @@
 				<div class="space-y-2">
 					{#each section.entries as entry (entry.id)}
 						<div id="entry-{entry.id}" class="{sessionStore.guidedMode && sessionStore.currentGuidedEntry()?.id === entry.id ? 'ring-2 ring-primary/30 rounded-xl' : ''}">
+						{#if entry.conflict}
+							<div class="mb-1">
+								<ConflictNotice conflict={entry.conflict} onusetheirs={() => useTheirs(entry.id)} />
+							</div>
+						{/if}
 						<SessionExerciseCard
 							{entry}
 							{readonly}

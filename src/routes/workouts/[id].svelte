@@ -6,6 +6,9 @@
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import { workoutExerciseCache } from '$lib/stores/workoutExerciseCache.svelte';
 	import type { Workout, WorkoutExerciseExpanded } from '$lib/pocketbase/types';
+	import { ClientResponseError } from 'pocketbase';
+	import { mergeForm, mergeTracked, takeTheirs } from '$lib/live/merge';
+	import ConflictNotice from '$lib/components/ConflictNotice.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { dragHandleZone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
@@ -85,24 +88,25 @@
 			: sections
 	);
 
-	function buildSections(exercises: WorkoutExerciseExpanded[]) {
+	// Rows carry `baseUpdated` (the server version they started from) and a
+	// `conflict` flag, so edit mode can merge live changes record by record.
+	function buildSections(exercises: (WorkoutExerciseExpanded & { baseUpdated?: string })[]) {
 		const groups: Record<string, any[]> = {};
 		for (const we of exercises) {
 			const s = we.section || 'main';
 			if (!groups[s]) groups[s] = [];
-			groups[s].push({ ...we });
+			groups[s].push({ ...we, baseUpdated: we.baseUpdated ?? we.updated });
 		}
 		return sectionOrder
 			.filter(s => groups[s]?.length)
-			.map(s => ({ key: s, label: sectionLabels[s] || s, items: groups[s] }));
+			.map(s => ({ key: s, label: sectionLabels[s] || s, items: groups[s].sort((a, b) => a.order - b.order) }));
 	}
 
 	const workoutId = $derived(route.params.id!);
 	const liveWorkout = $derived(workoutCache.getById(workoutId));
 	const liveExercises = $derived(workoutExerciseCache.items.filter(we => we.workout === workoutId));
 
-	// Outside edit mode the page mirrors the live stores, so changes from
-	// anywhere show up. Edit mode works on its own copy until it ends.
+	// Outside edit mode the page mirrors the live stores, so changes from anywhere show up.
 	$effect(() => {
 		if (editing) return;
 		const w = liveWorkout;
@@ -112,6 +116,76 @@
 		}
 		sections = buildSections(liveExercises);
 	});
+
+	// In edit mode, live changes merge in record by record: rows you aren't
+	// touching follow the server; the row whose targets you're editing keeps
+	// yours and is flagged if it changed elsewhere; rows mid-save wait for
+	// the save. Paused mid-drag so the list doesn't move under your finger.
+	let dragging = false;
+	const savingIds = new Set<string>();
+	$effect(() => {
+		if (!editing) return;
+		const server = liveExercises.map(we => ({ ...we, baseUpdated: we.updated }));
+		untrack(() => {
+			if (dragging) return;
+			const local = sections.flatMap(s => s.items).map(item => ({
+				...item,
+				dirty: item.id === editingTargetId,
+				saving: savingIds.has(item.id)
+			}));
+			sections = buildSections(mergeTracked(local, server));
+		});
+	});
+
+	function useTheirsForRow(itemId: string) {
+		const local = sections.flatMap(s => s.items);
+		const server = liveExercises.map(we => ({ ...we, baseUpdated: we.updated }));
+		sections = buildSections(takeTheirs(local, server, itemId));
+		const theirs = server.find(we => we.id === itemId);
+		if (theirs) openTargetEditor(theirs);
+		else editingTargetId = null;
+	}
+
+	// The name, description and tags are one record's form: untouched, it
+	// follows live changes; once you've changed it, yours is kept and flagged
+	// if the workout changed elsewhere.
+	let headerConflict = $state(false);
+	function headerOf(w: Workout) {
+		return { name: w.name, description: w.description || '', tags: [...(w.tags || [])] };
+	}
+	$effect(() => {
+		if (!editing) return;
+		const w = liveWorkout;
+		if (!w) return;
+		untrack(() => {
+			const next = mergeForm(
+				{
+					draft: { name: editName, description: editDescription, tags: editTags },
+					base: { name: nameSnapshot ?? '', description: descriptionSnapshot ?? '', tags: tagsSnapshot ?? [] },
+					conflict: headerConflict
+				},
+				headerOf(w)
+			);
+			applyHeader(next.draft, next.base);
+			headerConflict = next.conflict;
+		});
+	});
+
+	function applyHeader(draft: ReturnType<typeof headerOf>, base: ReturnType<typeof headerOf>) {
+		editName = draft.name;
+		editDescription = draft.description;
+		editTags = [...draft.tags];
+		nameSnapshot = base.name;
+		descriptionSnapshot = base.description;
+		tagsSnapshot = [...base.tags];
+	}
+
+	function useTheirsForHeader() {
+		if (!liveWorkout) return;
+		const theirs = headerOf(liveWorkout);
+		applyHeader(theirs, theirs);
+		headerConflict = false;
+	}
 
 	async function loadWorkout(id: string) {
 		loading = true;
@@ -158,19 +232,22 @@
 		descriptionSnapshot = editDescription;
 		addedIds = [];
 		deletedItems = [];
+		headerConflict = false;
 		editing = true;
 	}
 
 	async function exitEditMode() {
-		if (JSON.stringify(editTags) !== JSON.stringify(workout?.tags || [])) {
+		if (!workout) return;
+		// Compare against the server's current version, not the copy taken when editing began.
+		const current = liveWorkout ?? workout;
+		if (JSON.stringify(editTags) !== JSON.stringify(current.tags || [])) {
 			saveTags();
 		}
-		if (!workout) return;
 		const updates: Record<string, string> = {};
-		if (editName.trim() && editName.trim() !== workout.name) {
+		if (editName.trim() && editName.trim() !== current.name) {
 			updates.name = editName.trim();
 		}
-		if (editDescription.trim() !== (workout.description || '')) {
+		if (editDescription.trim() !== (current.description || '')) {
 			updates.description = editDescription.trim();
 		}
 		if (Object.keys(updates).length) {
@@ -243,11 +320,13 @@
 	}
 
 	function handleConsider(sectionKey: string, e: CustomEvent<{ items: any[] }>) {
+		dragging = true;
 		const section = sections.find(s => s.key === sectionKey);
 		if (section) section.items = e.detail.items;
 	}
 
 	function handleFinalize(sectionKey: string, e: CustomEvent<{ items: any[] }>) {
+		dragging = false;
 		const section = sections.find(s => s.key === sectionKey);
 		if (section) {
 			section.items = e.detail.items;
@@ -255,19 +334,33 @@
 		}
 	}
 
+	/**
+	 * Saves every row's position. Each row's order and section are set locally
+	 * first, so live echoes arriving mid-save can't move rows back, and the
+	 * section is saved too, so a row dragged into another section stays there.
+	 */
 	async function persistOrder() {
 		saving = true;
+		let orderCounter = 1;
+		for (const section of sections) {
+			for (const item of section.items) {
+				item.order = orderCounter++;
+				item.section = section.key;
+				savingIds.add(item.id);
+			}
+		}
 		try {
-			let orderCounter = 1;
 			for (const section of sections) {
 				for (const item of section.items) {
-					await pb.collection('workout_exercises').update(item.id, { order: orderCounter });
-					orderCounter++;
+					const res = await pb.collection('workout_exercises').update(item.id, { order: item.order, section: item.section });
+					item.baseUpdated = res.updated;
+					savingIds.delete(item.id);
 				}
 			}
 		} catch (err) {
 			console.error('Failed to save order:', err);
 		} finally {
+			savingIds.clear();
 			saving = false;
 		}
 	}
@@ -316,12 +409,15 @@
 			addedIds = [...addedIds, record.id];
 			openTargetEditor(record);
 
+			// Its live echo may have added it already.
+			if (sections.some(s => s.items.some(i => i.id === record.id))) return;
+			const row = { ...record, baseUpdated: record.updated };
 			let section = sections.find(s => s.key === sectionKey);
 			if (section) {
-				section.items = [...section.items, record];
+				section.items = [...section.items, row];
 			} else {
 				const insertIdx = sectionOrder.indexOf(sectionKey);
-				const newSection = { key: sectionKey, label: sectionLabels[sectionKey] || sectionKey, items: [record] };
+				const newSection = { key: sectionKey, label: sectionLabels[sectionKey] || sectionKey, items: [row] };
 				let placed = false;
 				for (let i = 0; i < sections.length; i++) {
 					if (sectionOrder.indexOf(sections[i].key) > insertIdx) {
@@ -361,33 +457,48 @@
 	}
 
 	async function saveTarget() {
-		if (!editingTargetId) return;
+		if (!editingTargetId || !workout) return;
+		const item = sections.flatMap(s => s.items).find(i => i.id === editingTargetId);
+		if (!item) return;
+		const targets = {
+			target_sets: editSets || 0,
+			target_reps: editReps ? String(editReps) : '',
+			target_value: editValue,
+			target_unit: editUnit,
+			target_distance: editDistance,
+			target_distance_unit: editDistanceUnit
+		};
 		saving = true;
+		const originalId = item.id;
+		savingIds.add(originalId);
+		Object.assign(item, targets);
 		try {
-			await pb.collection('workout_exercises').update(editingTargetId, {
-				target_sets: editSets || 0,
-				target_reps: editReps ? String(editReps) : '',
-				target_value: editValue,
-				target_unit: editUnit,
-				target_distance: editDistance,
-				target_distance_unit: editDistanceUnit
-			});
-			for (const section of sections) {
-				const item = section.items.find(i => i.id === editingTargetId);
-				if (item) {
-					item.target_sets = editSets || 0;
-					item.target_reps = editReps ? String(editReps) : '';
-					item.target_value = editValue;
-					item.target_unit = editUnit;
-					item.target_distance = editDistance;
-					item.target_distance_unit = editDistanceUnit;
-					break;
-				}
+			let res;
+			try {
+				res = await pb.collection('workout_exercises').update(item.id, targets);
+			} catch (err) {
+				// Deleted elsewhere while you edited it: saving keeps yours, so bring it back.
+				if (!(err instanceof ClientResponseError && err.status === 404)) throw err;
+				res = await pb.collection('workout_exercises').create<WorkoutExerciseExpanded>(
+					{
+						user: currentUserId(),
+						workout: workout.id,
+						exercise: item.exercise,
+						section: item.section,
+						order: item.order,
+						...targets
+					},
+					{ expand: 'exercise' }
+				);
+				item.id = res.id;
 			}
+			item.baseUpdated = res.updated;
+			item.conflict = null;
 			editingTargetId = null;
 		} catch (err) {
 			console.error('Failed to save target:', err);
 		} finally {
+			savingIds.delete(originalId);
 			saving = false;
 		}
 	}
@@ -502,6 +613,11 @@
 	</div>
 
 	<div class="p-4 max-w-lg mx-auto">
+		{#if editing && headerConflict}
+			<div class="mb-3">
+				<ConflictNotice conflict="changed" onusetheirs={useTheirsForHeader} />
+			</div>
+		{/if}
 		{#if editing}
 			<textarea
 				bind:value={editDescription}
@@ -559,6 +675,11 @@
 											ondelete={() => deleteExercise(section.key, item.id)}
 											oneditTarget={() => openTargetEditor(item)}
 										/>
+										{#if item.conflict}
+											<div class="mt-1">
+												<ConflictNotice conflict={item.conflict} onusetheirs={() => useTheirsForRow(item.id)} />
+											</div>
+										{/if}
 										<SlideReveal open={editingTargetId === item.id}>
 										<div class="mt-1 p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-2">
 											<!-- Row 1: Sets + Reps + Value -->

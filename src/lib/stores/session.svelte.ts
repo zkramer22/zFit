@@ -1,6 +1,7 @@
-import type { SessionEntryExpanded, SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
+import type { SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
+import type { TrackedRow } from '$lib/live/merge';
 
-export interface EntryState {
+export interface EntryState extends TrackedRow {
 	id: string;
 	exerciseId: string;
 	exerciseName: string;
@@ -32,6 +33,12 @@ export interface SavedEntry {
 
 export function savedFieldsKey(e: SavedEntry): string {
 	return JSON.stringify([e.sets, e.rpe, e.painFlag, e.notes]);
+}
+
+/** Editing an entry means you want your version, so it also settles any conflict. */
+function touch(entry: EntryState) {
+	entry.dirty = true;
+	entry.conflict = null;
 }
 
 function createSessionStore() {
@@ -70,7 +77,9 @@ function createSessionStore() {
 		return sectionOrder.map(s => ({ name: s, entries: bySection[s] || [] }));
 	});
 
-	const dirtyEntries = $derived(() => entries.filter(e => e.dirty));
+	// Entries waiting to save. One flagged as changed elsewhere waits for you
+	// to pick a version: "Use theirs", or edit it again to keep yours.
+	const dirtyEntries = $derived(() => entries.filter(e => e.dirty && !e.saving && !e.conflict));
 
 	const elapsedMinutes = $derived(() => Math.floor((Date.now() - startTime) / 60000));
 
@@ -189,7 +198,7 @@ function createSessionStore() {
 				: { reps: null, value: null, unit: entry.targetUnit || 'lb', distance: null, distance_unit: null, notes: '', completed: false };
 
 			entry.sets = [...entry.sets, newSet];
-			entry.dirty = true;
+			touch(entry);
 		},
 
 		duplicateSet(entryId: string) {
@@ -198,7 +207,7 @@ function createSessionStore() {
 
 			const lastSet = entry.sets[entry.sets.length - 1];
 			entry.sets = [...entry.sets, { ...lastSet, completed: false }];
-			entry.dirty = true;
+			touch(entry);
 		},
 
 		updateSet(entryId: string, setIndex: number, field: keyof SetData, value: unknown) {
@@ -208,7 +217,7 @@ function createSessionStore() {
 			entry.sets = entry.sets.map((s, i) =>
 				i === setIndex ? { ...s, [field]: value } : s
 			);
-			entry.dirty = true;
+			touch(entry);
 		},
 
 		removeSet(entryId: string, setIndex: number) {
@@ -216,28 +225,28 @@ function createSessionStore() {
 			if (!entry) return;
 
 			entry.sets = entry.sets.filter((_, i) => i !== setIndex);
-			entry.dirty = true;
+			touch(entry);
 		},
 
 		setRpe(entryId: string, rpe: number) {
 			const entry = entries.find(e => e.id === entryId);
 			if (!entry) return;
 			entry.rpe = rpe;
-			entry.dirty = true;
+			touch(entry);
 		},
 
 		togglePainFlag(entryId: string) {
 			const entry = entries.find(e => e.id === entryId);
 			if (!entry) return;
 			entry.painFlag = !entry.painFlag;
-			entry.dirty = true;
+			touch(entry);
 		},
 
 		setEntryNotes(entryId: string, notes: string) {
 			const entry = entries.find(e => e.id === entryId);
 			if (!entry) return;
 			entry.notes = notes;
-			entry.dirty = true;
+			touch(entry);
 		},
 
 		/** Swaps in a merged list, e.g. after live changes, without resetting guided mode or the clock. */
@@ -253,17 +262,33 @@ function createSessionStore() {
 			entries = entries.filter(e => e.id !== entryId);
 		},
 
-		/**
-		 * Marks entries clean after a save, but only those not edited again
-		 * while the save was in flight; those stay dirty for the next save.
-		 * Live changes would otherwise replace a "clean" entry with the
-		 * older saved version.
-		 */
-		markSaved(saved: SavedEntry[]) {
-			const byId = new Map(saved.map((s) => [s.id, s]));
+		/** Flags entries as mid-save so live changes leave them alone until the save returns. */
+		markSaving(ids: string[]) {
 			for (const entry of entries) {
-				const s = byId.get(entry.id);
-				if (s && savedFieldsKey(entry) === savedFieldsKey(s)) entry.dirty = false;
+				if (ids.includes(entry.id)) entry.saving = true;
+			}
+		},
+
+		/**
+		 * Records a finished save. The entry's base becomes the server's new
+		 * version. It's marked clean only if it wasn't edited again while the
+		 * save was in flight; otherwise it stays dirty for the next save.
+		 * `newId` is set when a save had to recreate an entry deleted elsewhere.
+		 */
+		markSaved(saved: SavedEntry, result: { id: string; updated: string }) {
+			const entry = entries.find((e) => e.id === saved.id);
+			if (!entry) return;
+			entry.id = result.id;
+			entry.saving = false;
+			entry.baseUpdated = result.updated;
+			entry.conflict = null;
+			if (savedFieldsKey(entry) === savedFieldsKey(saved)) entry.dirty = false;
+		},
+
+		/** Clears the mid-save flag after a failed save; the entry stays dirty. */
+		markSaveFailed(ids: string[]) {
+			for (const entry of entries) {
+				if (ids.includes(entry.id)) entry.saving = false;
 			}
 		}
 	};
