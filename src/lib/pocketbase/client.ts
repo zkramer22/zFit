@@ -1,6 +1,7 @@
 import PocketBase from 'pocketbase';
 
-export const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL);
+// The app calls its own address: PocketBase serves it on live, and Vite forwards /api to this checkout's copy in dev.
+export const pb = new PocketBase('/');
 pb.autoCancellation(false);
 
 /** Get the current authenticated user's ID. Throws if not logged in. */

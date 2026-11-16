@@ -1,0 +1,8 @@
+{
+	"env": { "PB_PORT": "{api}" },
+	"before": ["npm run pull -- --if-missing"],
+	"servers": {
+		"api": "npm run pb",
+		"web": "npx vite --port {web} --strictPort --host"
+	}
+}
