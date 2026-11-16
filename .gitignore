@@ -25,3 +25,6 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# Local PocketBase: its binary and each checkout's copy of the data
+.pb/

@@ -1,13 +1,14 @@
 import PocketBase from 'pocketbase';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { pocketbaseUrl } from './target.ts';
 
 config({ path: resolve(import.meta.dirname, '..', '.env') });
 
-const POCKETBASE_URL = process.env.PUBLIC_POCKETBASE_URL!;
+const POCKETBASE_URL = pocketbaseUrl();
 
 if (!POCKETBASE_URL) {
-	console.error('Missing PUBLIC_POCKETBASE_URL in .env');
+	console.error('No PocketBase to work on');
 	process.exit(1);
 }
 

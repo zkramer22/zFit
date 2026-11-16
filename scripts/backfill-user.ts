@@ -1,10 +1,11 @@
 import PocketBase from 'pocketbase';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { pocketbaseUrl } from './target.ts';
 
 config({ path: resolve(import.meta.dirname, '..', '.env') });
 
-const POCKETBASE_URL = process.env.PUBLIC_POCKETBASE_URL!;
+const POCKETBASE_URL = pocketbaseUrl();
 const email = process.argv[2];
 const password = process.argv[3];
 const userId = process.argv[4];

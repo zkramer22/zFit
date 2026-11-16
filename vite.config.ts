@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { router } from 'sv-router/vite-plugin';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -6,7 +6,14 @@ import tailwindcss from '@tailwindcss/vite';
 import { qrcode } from 'vite-plugin-qrcode';
 import { fileURLToPath, URL } from 'node:url';
 
-export default defineConfig({
+// In dev the app calls its own address, and /api goes on to this checkout's PocketBase, on the PB_PORT zDev gave it.
+// A phone on the network then needs only Vite's address.
+export default defineConfig(({ mode }) => ({
+	server: {
+		proxy: {
+			'/api': `http://127.0.0.1:${loadEnv(mode, process.cwd(), '').PB_PORT}`,
+		},
+	},
 	plugins: [
 		tailwindcss(),
 		router(),
@@ -64,4 +71,4 @@ export default defineConfig({
 			$lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
 		},
 	},
-});
+}));

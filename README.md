@@ -27,49 +27,29 @@ The `Health check` workflow requests `/api/health` every 15 minutes; a failed ru
 
 Remote shell access goes through the same tunnel: `ssh.ztkweb.com` routes to the server's SSH, gated by a Cloudflare Access application (email one-time code). Use the browser terminal at that address, or `ssh` with `ProxyCommand cloudflared access ssh --hostname %h`.
 
-## Getting Started
+## Development
 
-### Prerequisites
+Live data is touched only by deploys and by scripts run with `--live`. Every checkout runs against its own local copy of live, so a branch, its migration included, can be tried in the browser before it merges and deploys.
 
-- Node.js 20+
-- PocketBase running on your network with all collections created (see [Data Model](#data-model))
+Branches run from zDev (`~/dev/me/zdev`), which reads `zdev.json`. zFit has zDev's slot 1: main's web is on `21000` and its PocketBase on `31000`, and #12's on `21012` and `31012`. In a worktree, `zdev setup <issue or PR number>` gives it those ports, labels it from GitHub and copies main's `.env` with its `PB_PORT`. A Start on the zDev page pulls a copy if the checkout has none, then runs its PocketBase and Vite. Vite runs with `--host`, so its QR code opens the branch on a phone on the home network.
 
-### Setup
+- `npm run pull` replaces this checkout's copy with a fresh one from live. Live makes a backup, the pull downloads it and deletes it from the server, and swaps the copy in only once it unpacked whole. It refuses while this checkout's PocketBase runs.
+- `npm run pb` serves the copy on `PB_PORT` with the repo's `pb_hooks`. Its admin is at `http://127.0.0.1:<PB_PORT>/_/`. The binary, pinned to the server's version in `scripts/pocketbase.ts`, downloads into main's `.pb/bin/` the first time.
+- The app calls its own address: PocketBase serves it on live, and Vite forwards `/api` to the copy in dev.
+- Scripts work on this checkout's copy, and on live only with `--live`. Each prints its target first.
 
-```bash
-npm install
+Google sign-in can't return to a local address, so each pull sets `LOCAL_USER_PASSWORD` on the `LOCAL_USER_EMAIL` account in the copy. Over the network's `http://` address the phone gets the whole app but no service worker, so installing and offline use are tried on live.
+
+`.env`, in main's checkout:
+
+```
+POCKETBASE_SUPERUSER_EMAIL=…
+POCKETBASE_SUPERUSER_PASSWORD=…
+LOCAL_USER_EMAIL=…
+LOCAL_USER_PASSWORD=…
 ```
 
-Create a `.env` file in the project root:
-
-```
-POCKETBASE_URL=http://192.168.1.89:8090
-POCKETBASE_SUPERUSER_EMAIL=your-email
-POCKETBASE_SUPERUSER_PASSWORD=your-password
-```
-
-### Seed Data
-
-Populates PocketBase with all exercises (23), programs (3 day split), and program_exercises (36 join records) from the gym plan. Idempotent — safe to run multiple times.
-
-```bash
-npm run seed
-```
-
-### Development
-
-```bash
-npm run dev
-```
-
-Visit `http://localhost:5173`. The root `/` redirects to `/log`.
-
-### Build
-
-```bash
-npm run build
-npm run preview
-```
+zDev adds `PB_PORT` to each checkout's `.env` when it starts it.
 
 ## Routes
 
