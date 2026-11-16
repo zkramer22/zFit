@@ -27,11 +27,14 @@ async function answers(url: string): Promise<boolean> {
 	}
 }
 
+/** PocketBase takes backup names in lowercase letters, digits, _ and - only. */
+export const backupName = (at: Date) => `pull-${at.toISOString().replace(/[:.]/g, '-').toLowerCase()}.zip`;
+
 async function download(): Promise<string> {
 	const live = new PocketBase(LIVE_URL);
 	live.autoCancellation(false);
 	await live.collection('_superusers').authWithPassword(env.POCKETBASE_SUPERUSER_EMAIL!, env.POCKETBASE_SUPERUSER_PASSWORD!);
-	const name = `pull-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
+	const name = backupName(new Date());
 	console.log(`Making ${name} on live`);
 	await live.backups.create(name);
 	const zip = join(pbFolder, name);
