@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'child_process';
-import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { pathToFileURL } from 'url';
 import PocketBase from 'pocketbase';
@@ -27,6 +27,15 @@ async function answers(url: string): Promise<boolean> {
 	}
 }
 
+/**
+ * A pull's backups on live older than ten minutes: left by a pull that was stopped between making one and deleting it.
+ * A younger one may be another checkout's pull under way.
+ */
+export const strayBackups = (backups: { key: string; modified: string }[], now: Date) =>
+	backups
+		.filter((backup) => backup.key.startsWith('pull-') && now.getTime() - new Date(backup.modified).getTime() > 10 * 60_000)
+		.map((backup) => backup.key);
+
 /** PocketBase takes backup names in lowercase letters, digits, _ and - only. */
 export const backupName = (at: Date) => `pull-${at.toISOString().replace(/[:.]/g, '-').toLowerCase()}.zip`;
 
@@ -34,6 +43,10 @@ async function download(): Promise<string> {
 	const live = new PocketBase(LIVE_URL);
 	live.autoCancellation(false);
 	await live.collection('_superusers').authWithPassword(env.POCKETBASE_SUPERUSER_EMAIL!, env.POCKETBASE_SUPERUSER_PASSWORD!);
+	for (const stray of strayBackups(await live.backups.getFullList(), new Date())) {
+		await live.backups.delete(stray);
+		console.log(`Deleted ${stray} from live, left by an earlier pull`);
+	}
 	const name = backupName(new Date());
 	console.log(`Making ${name} on live`);
 	await live.backups.create(name);
@@ -104,6 +117,10 @@ async function pull() {
 	}
 	if (await answers(`http://127.0.0.1:${port}`))
 		throw new Error(`This checkout's PocketBase is running on ${port}. Stop it, then pull.`);
+	// What an earlier pull that was stopped partway left here: its download and its half-unpacked copy.
+	if (existsSync(pbFolder))
+		for (const entry of readdirSync(pbFolder))
+			if (/^(pull-.*\.zip|incoming-\d+)$/.test(entry)) rmSync(join(pbFolder, entry), { recursive: true, force: true });
 	const zip = await download();
 	try {
 		install(zip);
