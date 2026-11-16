@@ -1,15 +1,16 @@
 import PocketBase from 'pocketbase';
 import { config } from 'dotenv';
 import { resolve } from 'path';
+import { pocketbaseUrl } from './target.ts';
 
 config({ path: resolve(import.meta.dirname, '..', '.env') });
 
-const POCKETBASE_URL = process.env.POCKETBASE_URL!;
+const POCKETBASE_URL = pocketbaseUrl();
 const POCKETBASE_SUPERUSER_EMAIL = process.env.POCKETBASE_SUPERUSER_EMAIL!;
 const POCKETBASE_SUPERUSER_PASSWORD = process.env.POCKETBASE_SUPERUSER_PASSWORD!;
 
 if (!POCKETBASE_URL || !POCKETBASE_SUPERUSER_EMAIL || !POCKETBASE_SUPERUSER_PASSWORD) {
-	console.error('Missing .env variables. Set POCKETBASE_URL, POCKETBASE_SUPERUSER_EMAIL, POCKETBASE_SUPERUSER_PASSWORD');
+	console.error('Missing .env variables. Set POCKETBASE_SUPERUSER_EMAIL and POCKETBASE_SUPERUSER_PASSWORD');
 	process.exit(1);
 }
 

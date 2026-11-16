@@ -1,6 +1,5 @@
 import PocketBase from 'pocketbase';
-import { config } from 'dotenv';
-import { resolve } from 'path';
+import { pocketbaseUrl } from './target.ts';
 import { isLegacySet, migrateSet, inferMeasure, migrateTarget } from './measure-migration.ts';
 
 /**
@@ -8,12 +7,10 @@ import { isLegacySet, migrateSet, inferMeasure, migrateTarget } from './measure-
  * Prints the plan by default; pass --apply to back up, change the schema, and
  * rewrite sets and targets. Safe to re-run: migrated records are skipped.
  *
- *   npx tsx scripts/migrate-measure.ts [--apply]
+ *   npx tsx scripts/migrate-measure.ts [--apply] [--live]
  */
 
-config({ path: resolve(import.meta.dirname, '..', '.env') });
-
-const URL = process.env.PUBLIC_POCKETBASE_URL!;
+const URL = pocketbaseUrl();
 const EMAIL = process.env.POCKETBASE_SUPERUSER_EMAIL!;
 const PASSWORD = process.env.POCKETBASE_SUPERUSER_PASSWORD!;
 const APPLY = process.argv.includes('--apply');
