@@ -64,7 +64,6 @@
 </script>
 
 <div class="p-4 max-w-[500px] mx-auto">
-	<h1 class="text-2xl font-bold mb-6">Settings</h1>
 
 	<!-- Profile -->
 	<section class="rounded-xl border border-border bg-surface p-4 mb-4">

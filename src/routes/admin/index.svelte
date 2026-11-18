@@ -6,7 +6,7 @@
 	import { createLiveQuery } from '$lib/live/query.svelte';
 	import type { SubmissionExpanded, FeedbackExpanded, User } from '$lib/pocketbase/types';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import { ChevronLeft, Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from '@lucide/svelte';
+	import { Check, X, LoaderCircle, MessageSquare, GitPullRequest, Users, Bug, Lightbulb } from '@lucide/svelte';
 
 	let tab = $state<'submissions' | 'feedback' | 'users'>('submissions');
 	const submissions = $derived(submissionCache.items);
@@ -134,22 +134,10 @@
 	};
 </script>
 
-<svelte:head>
-	<title>Admin — zFit</title>
-</svelte:head>
-
 {#if !authStore.isAdmin}
 	<div class="p-4 text-center text-text-muted">Redirecting...</div>
 {:else}
 	<div class="p-4 max-w-2xl mx-auto">
-		<button type="button" onclick={() => history.back()}
-			class="flex items-center gap-1 text-sm text-text-muted hover:text-text transition-colors mb-4">
-			<ChevronLeft class="w-4 h-4" />
-			Back
-		</button>
-
-		<h1 class="text-2xl font-bold mb-4">Admin</h1>
-
 		<!-- Tabs -->
 		<div class="flex gap-1 rounded-lg bg-surface-dim p-1 mb-6">
 			<button

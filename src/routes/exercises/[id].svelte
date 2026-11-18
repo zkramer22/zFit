@@ -10,6 +10,9 @@
 	import { authStore } from '$lib/stores/auth.svelte';
 	import { mergeForm } from '$lib/live/merge';
 	import ConflictNotice from '$lib/components/ConflictNotice.svelte';
+	import { useHeader } from '$lib/header/header.svelte';
+	import HeaderButton from '$lib/components/HeaderButton.svelte';
+	import { Pencil, X } from '@lucide/svelte';
 	import { createLiveQuery } from '$lib/live/query.svelte';
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
 	import { formatSets } from '$lib/utils/format';
@@ -336,62 +339,33 @@
 			}
 		});
 	}
+
+	useHeader(() => ({
+		title: exercise ? (editing ? editName || 'Edit Exercise' : exercise.name) : undefined,
+		subtitle: isCustomized && !editing ? customizedNote : undefined,
+		actions: exercise ? headerActions : undefined
+	}));
 </script>
 
-<svelte:head>
-	<title>{exercise?.name || 'Exercise'} — zFit</title>
-</svelte:head>
+{#snippet customizedNote()}
+	<div class="text-xs text-primary mt-0.5">Customized</div>
+{/snippet}
+
+{#snippet headerActions()}
+	{#if editing}
+		<HeaderButton icon={X} label="Cancel editing" onclick={cancelEdit} />
+	{:else}
+		<HeaderButton icon={Pencil} label="Edit exercise" onclick={enterEditMode} />
+	{/if}
+{/snippet}
 
 {#if loading || !exercise}
-	<div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
-		<div class="flex items-center gap-3 max-w-lg mx-auto">
-			<button type="button" onclick={() => history.back()} class="text-text-muted hover:text-text shrink-0" aria-label="Go back">
-				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
-			</button>
-			<div class="h-6 w-40 rounded bg-surface-dim animate-pulse"></div>
-		</div>
-	</div>
 	<div class="p-4 max-w-lg mx-auto space-y-4">
 		{#each Array(4) as _}
 			<div class="h-12 rounded-xl bg-surface-dim animate-pulse"></div>
 		{/each}
 	</div>
 {:else}
-	<!-- Sticky header -->
-	<div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
-		<div class="flex items-center justify-between max-w-lg mx-auto">
-			<div class="flex items-center gap-3 min-w-0">
-				<button
-					type="button"
-					onclick={() => history.back()}
-					class="text-text-muted hover:text-text shrink-0"
-					aria-label="Go back"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-					</svg>
-				</button>
-				<div class="flex items-center gap-2 min-w-0">
-					<h1 class="font-bold text-lg leading-tight truncate">{editing ? editName || 'Edit Exercise' : exercise.name}</h1>
-					{#if isCustomized}
-						<span class="w-2 h-2 rounded-full bg-primary shrink-0" title="Customized"></span>
-					{/if}
-				</div>
-			</div>
-			{#if editing}
-				<div class="flex items-center gap-1">
-					<button type="button" onclick={cancelEdit} class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors" aria-label="Cancel editing">
-						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-					</button>
-				</div>
-			{:else}
-				<button type="button" onclick={enterEditMode} class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors" aria-label="Edit exercise">
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-				</button>
-			{/if}
-		</div>
-	</div>
-
 	<div class="p-4 max-w-lg mx-auto">
 		{#if editing}
 			<form onsubmit={updateExercise}>

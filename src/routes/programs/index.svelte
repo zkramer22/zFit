@@ -5,6 +5,9 @@
 	import { programWorkoutCache } from '$lib/stores/programWorkoutCache.svelte';
 	import type { Program, ProgramWorkoutExpanded, Workout } from '$lib/pocketbase/types';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
+	import { useHeader } from '$lib/header/header.svelte';
+	import HeaderButton from '$lib/components/HeaderButton.svelte';
+	import { Check, Plus, X } from '@lucide/svelte';
 
 	let showCreateForm = $state(false);
 	const loading = $derived(programCache.status === 'loading');
@@ -81,53 +84,20 @@
 	async function removeWorkout(programWorkoutId: string) {
 		await pb.collection('program_workouts').delete(programWorkoutId);
 	}
+
+	useHeader(() => ({ actions: headerActions }));
 </script>
 
-<svelte:head>
-	<title>Programs — zFit</title>
-</svelte:head>
+{#snippet headerActions()}
+	{#if showCreateForm}
+		<HeaderButton icon={X} label="Cancel" onclick={() => (showCreateForm = false)} />
+		<HeaderButton icon={Check} label="Create program" primary type="submit" form="create-program-form" />
+	{:else}
+		<HeaderButton icon={Plus} label="New program" onclick={() => (showCreateForm = true)} />
+	{/if}
+{/snippet}
 
 <div class="p-4 max-w-lg mx-auto">
-	<div class="flex items-center justify-between mb-6">
-		<div>
-			<h1 class="text-2xl font-bold">Programs</h1>
-		</div>
-		{#if showCreateForm}
-			<div class="flex items-center gap-1">
-				<button
-					type="button"
-					onclick={() => (showCreateForm = false)}
-					class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-					aria-label="Cancel"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-				</button>
-				<button
-					type="submit"
-					form="create-program-form"
-					class="p-2 rounded-lg text-primary bg-primary/10 transition-colors"
-					aria-label="Create program"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-					</svg>
-				</button>
-			</div>
-		{:else}
-			<button
-				type="button"
-				onclick={() => (showCreateForm = true)}
-				class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-				aria-label="New program"
-			>
-				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-				</svg>
-			</button>
-		{/if}
-	</div>
 
 	<!-- Create program form -->
 	<SlideReveal open={showCreateForm}>

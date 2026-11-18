@@ -4,7 +4,7 @@
 	import { workoutCache } from '$lib/stores/workoutCache.svelte';
 	import type { SetData, SetUnit, DistanceUnit } from '$lib/pocketbase/types';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { LoaderCircle, ChevronLeft } from '@lucide/svelte';
+	import { LoaderCircle } from '@lucide/svelte';
 
 	let creating = $state(false);
 
@@ -63,20 +63,7 @@
 	}
 </script>
 
-<svelte:head>
-	<title>New Session — zFit</title>
-</svelte:head>
-
 <div class="p-4 max-w-lg mx-auto">
-	<button type="button" onclick={() => history.back()}
-		class="flex items-center gap-1 text-sm text-text-muted hover:text-text transition-colors mb-4">
-		<ChevronLeft class="w-4 h-4" />
-		Back
-	</button>
-
-	<h1 class="text-2xl font-bold mb-2">New Session</h1>
-	<p class="text-text-muted text-sm mb-6">Choose a workout or go freeform.</p>
-
 	<div class="grid gap-3">
 		{#each workoutCache.items as workout}
 			<button

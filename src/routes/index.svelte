@@ -11,7 +11,9 @@
 	import { formatSets } from '$lib/utils/format';
 	import { today, getLocalTimeZone } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
-	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List, Dumbbell, Eye } from '@lucide/svelte';
+	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List, Dumbbell, Eye, Plus } from '@lucide/svelte';
+	import { useHeader } from '$lib/header/header.svelte';
+	import HeaderButton from '$lib/components/HeaderButton.svelte';
 	import { Button } from '$lib/components/ui/button';
 
 	let selectedDate = $state<DateValue | undefined>(today(getLocalTimeZone()));
@@ -146,27 +148,15 @@
 			creatingWorkout = false;
 		}
 	}
+
+	useHeader(() => ({ actions: headerActions }));
 </script>
 
-<svelte:head>
-	<title>zFit</title>
-</svelte:head>
+{#snippet headerActions()}
+	<HeaderButton icon={Plus} label="New session" onclick={() => navigate('/session')} />
+{/snippet}
 
 <div class="p-4 max-w-[500px] mx-auto">
-	<div class="flex items-center justify-between mb-4">
-		<h1 class="text-2xl font-bold">Home</h1>
-		<button
-			type="button"
-			onclick={() => navigate('/session')}
-			class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-			aria-label="New session"
-		>
-			<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-			</svg>
-		</button>
-	</div>
-
 	<!-- Active Sessions -->
 	{#if activeSessions.length > 0}
 		<section class="mb-6">
