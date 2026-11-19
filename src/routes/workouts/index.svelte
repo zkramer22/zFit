@@ -9,6 +9,9 @@
 	import ArrowDownNarrowWide from '@lucide/svelte/icons/arrow-down-narrow-wide';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
+	import { useHeader } from '$lib/header/header.svelte';
+	import HeaderButton from '$lib/components/HeaderButton.svelte';
+	import { Check, Pencil, Plus, X } from '@lucide/svelte';
 
 	let showCreateForm = $state(false);
 	let editingList = $state(false);
@@ -136,86 +139,24 @@
 			}
 		});
 	}
+
+	useHeader(() => ({ actions: headerActions }));
 </script>
 
-<svelte:head>
-	<title>Workouts — zFit</title>
-</svelte:head>
+{#snippet headerActions()}
+	{#if showCreateForm}
+		<HeaderButton icon={X} label="Cancel" onclick={() => { showCreateForm = false; selectedTags = []; }} />
+		<HeaderButton icon={Check} label="Create workout" primary type="submit" form="create-workout-form" />
+	{:else if editingList}
+		<HeaderButton icon={X} label="Cancel editing" onclick={() => (editingList = false)} />
+		<HeaderButton icon={Check} label="Done editing" primary onclick={() => (editingList = false)} />
+	{:else}
+		<HeaderButton icon={Pencil} label="Edit workout list" onclick={() => (editingList = true)} />
+		<HeaderButton icon={Plus} label="New workout" onclick={() => (showCreateForm = true)} />
+	{/if}
+{/snippet}
 
 <div class="p-4 max-w-lg mx-auto">
-	<div class="flex items-center justify-between mb-4">
-		<h1 class="text-2xl font-bold">Workouts</h1>
-		{#if showCreateForm}
-			<div class="flex items-center gap-1">
-				<button
-					type="button"
-					onclick={() => { showCreateForm = false; selectedTags = []; }}
-					class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-					aria-label="Cancel"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-				</button>
-				<button
-					type="submit"
-					form="create-workout-form"
-					class="p-2 rounded-lg text-primary bg-primary/10 transition-colors"
-					aria-label="Create workout"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-					</svg>
-				</button>
-			</div>
-		{:else if editingList}
-			<div class="flex items-center gap-1">
-				<button
-					type="button"
-					onclick={() => editingList = false}
-					class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-					aria-label="Cancel editing"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-				</button>
-				<button
-					type="button"
-					onclick={() => editingList = false}
-					class="p-2 rounded-lg text-primary bg-primary/10 transition-colors"
-					aria-label="Done editing"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-					</svg>
-				</button>
-			</div>
-		{:else}
-			<div class="flex items-center gap-1">
-				<button
-					type="button"
-					onclick={() => editingList = true}
-					class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-					aria-label="Edit workout list"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-					</svg>
-				</button>
-				<button
-					type="button"
-					onclick={() => (showCreateForm = true)}
-					class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-					aria-label="New workout"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-					</svg>
-				</button>
-			</div>
-		{/if}
-	</div>
 
 	<!-- Create workout form -->
 	<SlideReveal open={showCreateForm}>

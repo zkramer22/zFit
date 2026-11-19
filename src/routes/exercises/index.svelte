@@ -10,6 +10,9 @@
 	import ArrowDownNarrowWide from '@lucide/svelte/icons/arrow-down-narrow-wide';
 	import AlphabetScroller from '$lib/components/AlphabetScroller.svelte';
 	import type { UserExercise } from '$lib/pocketbase/types';
+	import { useHeader } from '$lib/header/header.svelte';
+	import HeaderButton from '$lib/components/HeaderButton.svelte';
+	import { Check, Plus, X } from '@lucide/svelte';
 
 	let searchQuery = $state('');
 	let activeCategory = $state('');
@@ -74,51 +77,20 @@
 		selectedMuscleGroups = [];
 		showCreateForm = false;
 	}
+
+	useHeader(() => ({ actions: headerActions }));
 </script>
 
-<svelte:head>
-	<title>Exercises — zFit</title>
-</svelte:head>
+{#snippet headerActions()}
+	{#if showCreateForm}
+		<HeaderButton icon={X} label="Cancel" onclick={() => { showCreateForm = false; selectedMuscleGroups = []; }} />
+		<HeaderButton icon={Check} label="Create exercise" primary type="submit" form="create-exercise-form" />
+	{:else}
+		<HeaderButton icon={Plus} label="New exercise" onclick={() => (showCreateForm = true)} />
+	{/if}
+{/snippet}
 
 <div class="p-4 max-w-lg mx-auto">
-	<div class="flex items-center justify-between mb-4">
-		<h1 class="text-2xl font-bold">Exercises</h1>
-		{#if showCreateForm}
-			<div class="flex items-center gap-1">
-				<button
-					type="button"
-					onclick={() => { showCreateForm = false; selectedMuscleGroups = []; }}
-					class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-					aria-label="Cancel"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-					</svg>
-				</button>
-				<button
-					type="submit"
-					form="create-exercise-form"
-					class="p-2 rounded-lg text-primary bg-primary/10 transition-colors"
-					aria-label="Create exercise"
-				>
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-					</svg>
-				</button>
-			</div>
-		{:else}
-			<button
-				type="button"
-				onclick={() => (showCreateForm = true)}
-				class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors"
-				aria-label="New exercise"
-			>
-				<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-				</svg>
-			</button>
-		{/if}
-	</div>
 
 	<!-- Create exercise form -->
 	<SlideReveal open={showCreateForm}>

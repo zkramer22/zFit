@@ -4,6 +4,7 @@
 	import { saveScrollPosition, getScrollPosition } from '$lib/stores/scrollPosition.svelte';
 	import { unreadNotificationCount } from '$lib/stores/notifications.svelte';
 	import { CalendarDays, List, Dumbbell, Settings } from '@lucide/svelte';
+	import AppHeader from '$lib/components/AppHeader.svelte';
 
 	let { children } = $props();
 
@@ -91,6 +92,8 @@
 </header>
 
 <div class="md:contents flex flex-col h-dvh">
+	<AppHeader />
+
 	<!-- Main content -->
 	<main bind:this={mainEl} class="flex-1 overflow-y-auto md:overflow-visible md:pb-4">
 		{@render children()}

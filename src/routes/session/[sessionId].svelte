@@ -10,7 +10,9 @@
 	import { ClientResponseError } from 'pocketbase';
 	import ConflictNotice from '$lib/components/ConflictNotice.svelte';
 	import type { SessionExpanded, SessionEntry, SessionEntryExpanded, WorkoutExerciseExpanded, SetData } from '$lib/pocketbase/types';
-	import SessionHeader from '$lib/components/SessionHeader.svelte';
+	import { useHeader } from '$lib/header/header.svelte';
+	import Button from '$lib/components/Button.svelte';
+	import { Check, ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import SessionExerciseCard from '$lib/components/SessionExerciseCard.svelte';
 	import RestTimer from '$lib/components/RestTimer.svelte';
 	import { sessionStore, type EntryState, type SavedEntry } from '$lib/stores/session.svelte';
@@ -395,41 +397,82 @@
 			el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		}
 	});
+
+	useHeader(() => ({
+		title: session ? session.expand?.workout?.name || 'Freeform Session' : undefined,
+		subtitle: session ? statusLine : undefined,
+		actions: session ? headerActions : undefined,
+		below: !readonly && sessionStore.guidedMode ? guidedBar : undefined
+	}));
 </script>
 
-<svelte:head>
-	<title>Session — zFit</title>
-</svelte:head>
+{#snippet statusLine()}
+	{#if isCompleted && !editingHistory}
+		<div class="flex items-center gap-1 text-xs mt-0.5">
+			<Check class="w-3 h-3 text-green-600" />
+			<span class="text-green-600">Completed</span>
+		</div>
+	{:else}
+		<div class="flex items-center gap-0.5 text-xs mt-0.5 transition-opacity duration-300 {sessionStore.saving || saved ? 'opacity-100' : 'opacity-0'}">
+			{#if sessionStore.saving}
+				<span class="text-primary animate-pulse">Saving changes...</span>
+			{:else}
+				<Check class="w-3 h-3 text-green-600" />
+				<span class="text-green-600">Saved</span>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet headerActions()}
+	{#if isCompleted}
+		{#if editingHistory}
+			<Button type="button" variant="secondary" size="sm" onclick={() => (editingHistory = false)}>Done</Button>
+		{:else}
+			<Button type="button" variant="secondary" size="sm" onclick={() => (editingHistory = true)}>Edit</Button>
+		{/if}
+	{:else}
+		<div class="flex items-center gap-2">
+			<Button
+				type="button"
+				variant={sessionStore.guidedMode ? 'primary' : 'secondary'}
+				size="sm"
+				onclick={() => sessionStore.toggleGuidedMode()}
+			>
+				Guide
+			</Button>
+			<Button type="button" variant="primary" size="sm" onclick={finishSession}>Finish</Button>
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet guidedBar()}
+	{@const position = sessionStore.guidedPosition()}
+	<div class="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
+		<div class="flex items-center gap-2">
+			<button type="button" onclick={() => sessionStore.guidedPrevious()} class="p-1 rounded text-text-muted hover:text-text hover:bg-surface-hover transition-colors" aria-label="Previous">
+				<ChevronLeft class="w-4 h-4" />
+			</button>
+			<span class="text-xs text-text-muted tabular-nums">
+				Exercise {position.exercise}/{position.totalExercises}, Set {position.set}/{position.totalSets}
+			</span>
+			<button type="button" onclick={() => sessionStore.guidedNext()} class="p-1 rounded text-text-muted hover:text-text hover:bg-surface-hover transition-colors" aria-label="Next">
+				<ChevronRight class="w-4 h-4" />
+			</button>
+		</div>
+		<button type="button" onclick={() => sessionStore.guidedSkip()} class="text-xs text-text-muted hover:text-primary transition-colors">
+			Skip
+		</button>
+	</div>
+{/snippet}
 
 {#if loading}
-	<div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
-		<div class="flex items-center gap-3 max-w-lg mx-auto">
-			<div class="h-5 w-40 rounded bg-surface-dim animate-pulse"></div>
-		</div>
-	</div>
 	<div class="p-4 max-w-lg mx-auto space-y-3">
 		{#each Array(4) as _}
 			<div class="h-16 rounded-xl bg-surface-dim animate-pulse"></div>
 		{/each}
 	</div>
 {:else if session}
-	<SessionHeader
-		workoutName={sessionStore.workoutName}
-		saving={sessionStore.saving}
-		{saved}
-		completed={isCompleted}
-		{editingHistory}
-		guidedMode={readonly ? false : sessionStore.guidedMode}
-		guidedPosition={readonly ? undefined : sessionStore.guidedPosition()}
-		onfinish={readonly ? undefined : finishSession}
-		ontoggleGuided={readonly ? undefined : () => sessionStore.toggleGuidedMode()}
-		onguidedPrevious={readonly ? undefined : () => sessionStore.guidedPrevious()}
-		onguidedNext={readonly ? undefined : () => sessionStore.guidedNext()}
-		onguidedSkip={readonly ? undefined : () => sessionStore.guidedSkip()}
-		oneditHistory={() => editingHistory = true}
-		oncancelEdit={() => editingHistory = false}
-	/>
-
 	<div class="p-4 max-w-lg mx-auto space-y-6 pb-24">
 		{#if !readonly}
 			<textarea

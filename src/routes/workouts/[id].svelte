@@ -9,6 +9,9 @@
 	import { ClientResponseError } from 'pocketbase';
 	import { mergeForm, mergeTracked, takeTheirs } from '$lib/live/merge';
 	import ConflictNotice from '$lib/components/ConflictNotice.svelte';
+	import { useHeader } from '$lib/header/header.svelte';
+	import HeaderButton from '$lib/components/HeaderButton.svelte';
+	import { Check, Pencil, Undo2 } from '@lucide/svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { dragHandleZone } from 'svelte-dnd-action';
 	import { flip } from 'svelte/animate';
@@ -539,19 +542,39 @@
 		}
 		return list;
 	}
+
+	useHeader(() => ({
+		title: workout?.name,
+		titleEditor: editing ? nameInput : undefined,
+		subtitle: saving ? savingNote : undefined,
+		actions: workout ? headerActions : undefined
+	}));
 </script>
 
-<svelte:head>
-	<title>{workout?.name ?? 'Loading...'} — zFit</title>
-</svelte:head>
+{#snippet nameInput()}
+	<input
+		type="text"
+		bind:value={editName}
+		class="font-bold text-lg leading-tight truncate bg-transparent border-b border-primary/40 focus:border-primary
+			outline-none min-w-0 w-full"
+		placeholder="Workout name"
+	/>
+{/snippet}
+
+{#snippet savingNote()}
+	<div class="text-xs text-primary animate-pulse mt-0.5">Saving...</div>
+{/snippet}
+
+{#snippet headerActions()}
+	{#if editing}
+		<HeaderButton icon={Undo2} label="Undo all changes" disabled={saving} onclick={undoEdits} />
+		<HeaderButton icon={Check} label="Done editing" primary disabled={saving} onclick={exitEditMode} />
+	{:else}
+		<HeaderButton icon={Pencil} label="Edit workout" disabled={saving} onclick={enterEditMode} />
+	{/if}
+{/snippet}
 
 {#if loading}
-	<div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
-		<div class="flex items-center gap-3 max-w-lg mx-auto">
-			<div class="w-5 h-5 rounded bg-surface-dim animate-pulse"></div>
-			<div class="h-5 w-40 rounded bg-surface-dim animate-pulse"></div>
-		</div>
-	</div>
 	<div class="p-4 max-w-lg mx-auto space-y-6">
 		{#each Array(3) as _}
 			<div>
@@ -565,53 +588,6 @@
 		{/each}
 	</div>
 {:else if workout}
-	<!-- Sticky header -->
-	<div class="sticky top-0 z-40 bg-surface border-b border-border px-4 py-3">
-		<div class="flex items-center justify-between max-w-lg mx-auto">
-			<div class="flex items-center gap-3 min-w-0">
-				<button type="button" onclick={() => history.back()} class="text-text-muted hover:text-text shrink-0" aria-label="Go back">
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-					</svg>
-				</button>
-				{#if editing}
-					<input
-						type="text"
-						bind:value={editName}
-						class="font-bold text-lg leading-tight truncate bg-transparent border-b border-primary/40 focus:border-primary
-							outline-none min-w-0 w-full"
-						placeholder="Workout name"
-					/>
-				{:else}
-					<h1 class="font-bold text-lg leading-tight truncate">{workout.name}</h1>
-				{/if}
-				{#if saving}
-					<span class="text-xs text-primary animate-pulse shrink-0">Saving...</span>
-				{/if}
-			</div>
-			{#if editing}
-				<div class="flex items-center gap-1">
-					<button type="button" disabled={saving} onclick={undoEdits} class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors disabled:opacity-50" aria-label="Undo all changes">
-						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-						</svg>
-					</button>
-					<button type="button" disabled={saving} onclick={exitEditMode} class="p-2 rounded-lg text-primary bg-primary/10 transition-colors disabled:opacity-50" aria-label="Done editing">
-						<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-							<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-						</svg>
-					</button>
-				</div>
-			{:else}
-				<button type="button" disabled={saving} onclick={enterEditMode} class="p-2 rounded-lg text-text-muted hover:bg-surface-hover transition-colors disabled:opacity-50" aria-label="Edit workout">
-					<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-					</svg>
-				</button>
-			{/if}
-		</div>
-	</div>
-
 	<div class="p-4 max-w-lg mx-auto">
 		{#if editing && headerConflict}
 			<div class="mb-3">
