@@ -12,7 +12,8 @@
 		"prepare": "sv-router || echo ''",
 		"check": "sv-router && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "sv-router && svelte-check --tsconfig ./tsconfig.json --watch",
-		"seed": "tsx scripts/seed.ts"
+		"seed": "tsx scripts/seed.ts",
+		"test": "node --import tsx --test '{src,scripts}/**/*.test.ts'"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.11.0",

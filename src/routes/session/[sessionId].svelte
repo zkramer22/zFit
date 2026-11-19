@@ -15,6 +15,8 @@
 	import Drawer from '$lib/components/Drawer.svelte';
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import type { Exercise } from '$lib/pocketbase/types';
+	import { emptySet, targetOf } from '$lib/measure';
+	import { authStore } from '$lib/stores/auth.svelte';
 
 	let loading = $state(true);
 	let session = $state<SessionExpanded | null>(null);
@@ -98,12 +100,9 @@
 					rpe: entry.rpe,
 					painFlag: entry.pain_flag,
 					notes: entry.notes || '',
-					targetSets: target?.target_sets || 0,
-					targetReps: target?.target_reps || '',
-					targetValue: target?.target_value || '',
-					targetUnit: target?.target_unit || 'lb',
-					targetDistance: target?.target_distance || '',
-					targetDistanceUnit: target?.target_distance_unit || null,
+					measure: exercise?.measure || 'weight',
+					loadFactor: exercise?.load_factor || '',
+					target: targetOf(target),
 					workoutNotes: target?.notes || '',
 					lastSessionSets: lastSets,
 					dirty: false
@@ -211,16 +210,12 @@
 		}).sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	function defaultUnit(exercise: Exercise): 'lb' | 'bw' {
-		const bwCategories = ['bodyweight', 'warmup', 'core', 'pt', 'stability'];
-		return bwCategories.includes(exercise.category) ? 'bw' : 'lb';
-	}
-
 	async function addExerciseToSession(section: string, exerciseId: string) {
 		const exercise = exerciseCache.getById(exerciseId);
 		if (!exercise || !session) return;
 
-		const unit = defaultUnit(exercise);
+		const measure = exercise.measure || 'weight';
+		const sets = [emptySet(measure, authStore.weightUnit)];
 		const maxOrder = sessionStore.entries.reduce((max, e) => Math.max(max, e.order), 0);
 
 		const newEntry = await pb.collection('session_entries').create({
@@ -228,7 +223,7 @@
 			session: session.id,
 			exercise: exerciseId,
 			order: maxOrder + 1,
-			sets: [{ reps: null, value: null, unit, distance: null, distance_unit: null, notes: '', completed: false }],
+			sets,
 			rpe: null,
 			pain_flag: false,
 			notes: ''
@@ -240,16 +235,13 @@
 			exerciseName: exercise.name,
 			section,
 			order: maxOrder + 1,
-			sets: [{ reps: null, value: null, unit, distance: null, distance_unit: null, notes: '', completed: false }],
+			sets,
 			rpe: null,
 			painFlag: false,
 			notes: '',
-			targetSets: 0,
-			targetReps: '',
-			targetValue: '',
-			targetUnit: unit,
-			targetDistance: '',
-			targetDistanceUnit: null,
+			measure,
+			loadFactor: exercise.load_factor || '',
+			target: targetOf(undefined),
 			workoutNotes: '',
 			lastSessionSets: [],
 			dirty: false
@@ -298,11 +290,11 @@
 		const entry = sessionStore.entries.find((e) => e.id === entryId);
 		if (!entry) return;
 		const set = entry.sets[setIndex];
-		if (!set?.value) return;
+		if (!set?.seconds) return;
 		// Interrupt rest timer when starting a countdown
 		restTimerStore.reset();
 		countdownTarget = { entryId, setIndex };
-		countdownTimerStore.start(set.value);
+		countdownTimerStore.start(set.seconds);
 	}
 
 	// When countdown finishes, auto-mark set completed + start rest timer

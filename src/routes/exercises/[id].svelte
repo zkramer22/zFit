@@ -3,9 +3,12 @@
 	import { route } from 'sv-router/generated';
 	import { pb, currentUserId } from '$lib/pocketbase/client';
 	import { exerciseCache } from '$lib/stores/exerciseCache.svelte';
-	import type { Exercise, UserExercise, SetData, SessionEntry, Session, Submission } from '$lib/pocketbase/types';
-	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, getLabel } from '$lib/constants';
-	import { formatSets } from '$lib/utils/format';
+	import type { Exercise, UserExercise, SetData, SessionEntry, Session, Submission, Measure, LoadFactor } from '$lib/pocketbase/types';
+	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, MEASURES, LOAD_FACTORS, getLabel } from '$lib/constants';
+	import { SelectButton } from '$lib/components/ui/select-button';
+	import { authStore } from '$lib/stores/auth.svelte';
+	import { formatSets, setsLoadTag } from '$lib/utils/format';
+	import LoadFactorTag from '$lib/components/LoadFactorTag.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 
@@ -214,6 +217,10 @@
 	let editCategory = $state('');
 	let editDescription = $state('');
 	let editMuscleGroups = $state<string[]>([]);
+	let editMeasure = $state<Measure>('weight');
+	let editLoadFactor = $state<LoadFactor>('single');
+	// Measure and pairing describe the movement itself, so they live on the shared record
+	const canEditMeasure = $derived(!isCanonical || authStore.isAdmin);
 
 	function enterEditMode() {
 		if (!exercise) return;
@@ -221,6 +228,8 @@
 		editCategory = exercise.category;
 		editDescription = isCanonical ? displayDescription : (exercise.description || '');
 		editMuscleGroups = [...(exercise.muscle_groups || [])];
+		editMeasure = exercise.measure || 'weight';
+		editLoadFactor = exercise.load_factor || 'single';
 		editing = true;
 	}
 
@@ -249,13 +258,19 @@
 				// Name, category, muscle_groups aren't overridable — they stay on canonical
 				// But we reload to reflect changes
 				userExercise = await pb.collection('user_exercises').getOne<UserExercise>(ue.id);
+				if (canEditMeasure) {
+					await pb.collection('exercises').update(exercise.id, { measure: editMeasure, load_factor: editLoadFactor });
+					await exerciseCache.invalidate();
+				}
 			} else {
 				// Editing a user-created exercise → update directly
 				await pb.collection('exercises').update(exercise.id, {
 					name: editName.trim(),
 					category: editCategory,
 					description: editDescription,
-					muscle_groups: editMuscleGroups
+					muscle_groups: editMuscleGroups,
+					measure: editMeasure,
+					load_factor: editLoadFactor
 				});
 				await exerciseCache.invalidate();
 			}
@@ -415,6 +430,16 @@
 							</div>
 						</div>
 					{/if}
+					{#if canEditMeasure}
+						<div>
+							<span class="block text-sm font-medium mb-1">Measure</span>
+							<SelectButton options={MEASURES} value={editMeasure} onchange={(v) => editMeasure = v as Measure} />
+						</div>
+						<div>
+							<span class="block text-sm font-medium mb-1">Load</span>
+							<SelectButton options={LOAD_FACTORS} value={editLoadFactor} onchange={(v) => editLoadFactor = v as LoadFactor} />
+						</div>
+					{/if}
 					<div>
 						<label for="edit-desc" class="block text-sm font-medium mb-1">Description</label>
 						<textarea id="edit-desc" bind:value={editDescription} rows="3" class="w-full px-3 py-2 rounded-lg border border-border bg-surface text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"></textarea>
@@ -556,7 +581,7 @@
 									{/if}
 								</div>
 							</div>
-							<div class="text-sm text-text-muted">{formatSets(entry.sets)}</div>
+							<div class="text-sm text-text-muted">{formatSets(entry.sets, exercise)} <LoadFactorTag label={setsLoadTag(entry.sets, exercise)} /></div>
 							{#if entry.notes}
 								<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
 							{/if}

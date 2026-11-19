@@ -52,12 +52,22 @@ export const WORKOUT_TAGS: LabelValue[] = [
 	{ value: 'upper body', label: 'Upper Body' }
 ];
 
-export const SET_UNITS: LabelValue[] = [
-	{ value: 'lb', label: 'lb' },
-	{ value: 'kg', label: 'kg' },
-	{ value: 'sec', label: 'sec' },
-	{ value: 'bw', label: 'BW' },
+export const MEASURES: LabelValue[] = [
+	{ value: 'weight', label: 'Weight' },
+	{ value: 'bodyweight', label: 'Bodyweight' },
+	{ value: 'time', label: 'Time' },
 	{ value: 'band', label: 'Band' }
+];
+
+export const LOAD_FACTORS: LabelValue[] = [
+	{ value: 'single', label: 'Single' },
+	{ value: 'pair', label: 'Pair' },
+	{ value: 'each_side', label: 'Each side' }
+];
+
+export const WEIGHT_UNITS: LabelValue[] = [
+	{ value: 'lb', label: 'lb' },
+	{ value: 'kg', label: 'kg' }
 ];
 
 export const DISTANCE_UNITS: LabelValue[] = [

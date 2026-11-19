@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { EntryState } from '$lib/stores/session.svelte';
 	import type { SetData } from '$lib/pocketbase/types';
-	import { formatTarget, formatSets, formatSetsSummary } from '$lib/utils/format';
+	import { formatTarget, formatSets, formatSetsSummary, targetLoadTag, setsLoadTag } from '$lib/utils/format';
+	import LoadFactorTag from './LoadFactorTag.svelte';
+	import { authStore } from '$lib/stores/auth.svelte';
 	import SlideReveal from './SlideReveal.svelte';
 	import SetRow from './SetRow.svelte';
 
@@ -28,31 +30,26 @@
 		onremoveSet, onsetDone, onsetRpe, ontogglePain, onsetnotes, onstarttimer, onremoveEntry
 	}: Props = $props();
 
+	const kind = $derived({ measure: entry.measure, load_factor: entry.loadFactor });
+
 	function handleSetDone(idx: number) {
 		onupdateSet(idx, 'completed', !entry.sets[idx].completed);
 		onsetDone(idx);
 	}
 
 	const targetSummary = $derived(() => {
-		const target = formatTarget({
-			target_sets: entry.targetSets,
-			target_reps: entry.targetReps,
-			target_value: entry.targetValue,
-			target_unit: entry.targetUnit,
-			target_distance: entry.targetDistance,
-			target_distance_unit: entry.targetDistanceUnit
-		});
-		if (target) return target;
+		const target = formatTarget(entry.target, kind, authStore.weightUnit);
+		if (target) return { text: target, tag: targetLoadTag(entry.target, kind) };
 		// Fallback: compact summary of actual logged sets
-		if (entry.sets.length > 0) return formatSetsSummary(entry.sets);
-		return '';
+		if (entry.sets.length > 0) return { text: formatSetsSummary(entry.sets, kind), tag: setsLoadTag(entry.sets, kind) };
+		return null;
 	});
 
 	const allCompleted = $derived(() => entry.sets.length > 0 && entry.sets.every(s => s.completed));
 
 	const lastSessionPreview = $derived(() => {
 		if (!entry.lastSessionSets?.length) return '';
-		return formatSets(entry.lastSessionSets);
+		return formatSets(entry.lastSessionSets, kind);
 	});
 </script>
 
@@ -63,7 +60,7 @@
 			<div class="flex-1 min-w-0">
 				<div class="font-medium leading-tight">{entry.exerciseName}</div>
 				{#if targetSummary()}
-					<div class="text-xs text-text-muted mt-0.5">{targetSummary()}</div>
+					<div class="flex items-center gap-1 text-xs text-text-muted mt-0.5">{targetSummary()?.text} <LoadFactorTag label={targetSummary()?.tag ?? ''} /></div>
 				{/if}
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
@@ -88,7 +85,7 @@
 			<!-- Last session reference -->
 			{#if lastSessionPreview()}
 				<div class="text-xs text-text-muted bg-surface-dim rounded-lg px-2 py-1.5">
-					<span class="font-medium">Last:</span> {lastSessionPreview()}
+					<span class="font-medium">Last:</span> {lastSessionPreview()} <LoadFactorTag label={setsLoadTag(entry.lastSessionSets, kind)} />
 				</div>
 			{/if}
 
@@ -98,6 +95,8 @@
 					<SetRow
 						index={i}
 						{set}
+						measure={entry.measure}
+						bandLevels={authStore.bandLevels}
 						{readonly}
 						done={set.completed}
 						timerRunning={countdownSetIndex === i}

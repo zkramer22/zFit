@@ -12,11 +12,13 @@
 	import ExerciseListItem from '$lib/components/ExerciseListItem.svelte';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import Drawer from '$lib/components/Drawer.svelte';
-	import { WORKOUT_TAGS, SET_UNITS, DISTANCE_UNITS, getLabel } from '$lib/constants';
-	import { formatTarget } from '$lib/utils/format';
+	import { WORKOUT_TAGS, DISTANCE_UNITS, getLabel } from '$lib/constants';
+	import { formatTarget, targetLoadTag } from '$lib/utils/format';
 	import { NumberStepper } from '$lib/components/ui/number-stepper';
 	import { SelectButton } from '$lib/components/ui/select-button';
-	import type { SetUnit, DistanceUnit } from '$lib/pocketbase/types';
+	import type { DistanceUnit, Measure, TargetFields } from '$lib/pocketbase/types';
+	import { authStore } from '$lib/stores/auth.svelte';
+	import { targetOf } from '$lib/measure';
 
 	let workout = $state<Workout | null>(null);
 	let allExercises = $state<Exercise[]>([]);
@@ -194,7 +196,9 @@
 					workout: workout.id,
 					exercise: item.exercise || item.expand?.exercise?.id,
 					section: sectionKey,
-					order: item.order || 0
+					order: item.order || 0,
+					...targetOf(item),
+					notes: item.notes || ''
 				});
 			}
 			sections = snapshot.map(s => ({ ...s, items: s.items.map(i => ({ ...i })) }));
@@ -326,18 +330,22 @@
 	let editingTargetId = $state<string | null>(null);
 	let editSets = $state<number | null>(null);
 	let editReps = $state<number | null>(null);
-	let editValue = $state('');
-	let editUnit = $state<SetUnit>('lb');
+	let editLoad = $state<number | null>(null);
+	let editSeconds = $state<number | null>(null);
+	let editBand = $state('');
+	let editMeasure = $state<Measure>('weight');
 	let editDistance = $state('');
 	let editDistanceUnit = $state<DistanceUnit | null>(null);
 	let showDistanceRow = $state(false);
 
 	function openTargetEditor(item: any) {
 		editingTargetId = item.id;
+		editMeasure = item.expand?.exercise?.measure || 'weight';
 		editSets = item.target_sets || null;
 		editReps = item.target_reps ? Number(item.target_reps) || null : null;
-		editValue = item.target_value || '';
-		editUnit = item.target_unit || 'lb';
+		editLoad = item.target_load || null;
+		editSeconds = item.target_seconds || null;
+		editBand = item.target_band || '';
 		editDistance = item.target_distance || '';
 		editDistanceUnit = item.target_distance_unit || null;
 		showDistanceRow = !!(item.target_distance);
@@ -347,23 +355,20 @@
 		if (!editingTargetId) return;
 		saving = true;
 		try {
-			await pb.collection('workout_exercises').update(editingTargetId, {
+			const fields: TargetFields = {
 				target_sets: editSets || 0,
 				target_reps: editReps ? String(editReps) : '',
-				target_value: editValue,
-				target_unit: editUnit,
+				target_load: editMeasure === 'weight' || editMeasure === 'bodyweight' ? editLoad : null,
+				target_seconds: editMeasure === 'time' ? editSeconds : null,
+				target_band: editMeasure === 'band' ? editBand : '',
 				target_distance: editDistance,
 				target_distance_unit: editDistanceUnit
-			});
+			};
+			await pb.collection('workout_exercises').update(editingTargetId, fields);
 			for (const section of sections) {
 				const item = section.items.find(i => i.id === editingTargetId);
 				if (item) {
-					item.target_sets = editSets || 0;
-					item.target_reps = editReps ? String(editReps) : '';
-					item.target_value = editValue;
-					item.target_unit = editUnit;
-					item.target_distance = editDistance;
-					item.target_distance_unit = editDistanceUnit;
+					Object.assign(item, fields);
 					break;
 				}
 			}
@@ -540,14 +545,15 @@
 									{#if item.expand?.exercise}
 										<ExerciseListItem
 											exercise={item.expand.exercise}
-											target={formatTarget(item)}
+											target={formatTarget(item, item.expand.exercise, authStore.weightUnit)}
+											targetTag={targetLoadTag(item, item.expand.exercise)}
 											editing
 											ondelete={() => deleteExercise(section.key, item.id)}
 											oneditTarget={() => openTargetEditor(item)}
 										/>
 										<SlideReveal open={editingTargetId === item.id}>
 										<div class="mt-1 p-3 rounded-xl border border-primary/30 bg-primary/5 space-y-2">
-											<!-- Row 1: Sets + Reps + Value -->
+											<!-- Row 1: Sets, reps, and the measure's amount -->
 											<div class="flex gap-2">
 												<div class="flex-1 min-w-0">
 													<span class="block text-xs font-medium text-text-muted mb-1">Sets</span>
@@ -557,21 +563,24 @@
 													<span class="block text-xs font-medium text-text-muted mb-1">Reps</span>
 													<NumberStepper value={editReps} onchange={(v) => editReps = v} min={1} />
 												</div>
-												<div class="flex-1 min-w-0">
-													<span class="block text-xs font-medium text-text-muted mb-1">Value</span>
-													<NumberStepper
-														value={editValue ? Number(editValue) : null}
-														onchange={(v) => editValue = v != null ? String(v) : ''}
-														step={editUnit === 'lb' || editUnit === 'kg' ? 5 : 1}
-														disabled={editUnit === 'bw' || editUnit === 'band'}
-													/>
+												{#if editMeasure === 'weight' || editMeasure === 'bodyweight'}
+													<div class="flex-1 min-w-0">
+														<span class="block text-xs font-medium text-text-muted mb-1">{editMeasure === 'bodyweight' ? `Added ${authStore.weightUnit}` : authStore.weightUnit}</span>
+														<NumberStepper value={editLoad} onchange={(v) => editLoad = v} step={editMeasure === 'weight' ? 5 : 2.5} />
+													</div>
+												{:else if editMeasure === 'time'}
+													<div class="flex-1 min-w-0">
+														<span class="block text-xs font-medium text-text-muted mb-1">Seconds</span>
+														<NumberStepper value={editSeconds} onchange={(v) => editSeconds = v} step={5} />
+													</div>
+												{/if}
+											</div>
+											{#if editMeasure === 'band' && authStore.bandLevels.length}
+												<div>
+													<span class="block text-xs font-medium text-text-muted mb-1">Band</span>
+													<SelectButton options={authStore.bandLevels.map((b) => ({ value: b, label: b }))} value={editBand} onchange={(v) => editBand = v} />
 												</div>
-											</div>
-											<!-- Row 2: Unit selector -->
-											<div>
-												<span class="block text-xs font-medium text-text-muted mb-1">Unit</span>
-												<SelectButton options={SET_UNITS} value={editUnit} onchange={(v) => editUnit = v as SetUnit} />
-											</div>
+											{/if}
 											<!-- Row 3: Distance (collapsible) -->
 											{#if showDistanceRow}
 												<div class="flex gap-2 items-end">
@@ -617,7 +626,8 @@
 						<div class="space-y-2">
 							{#each section.items as item (item.id)}
 								{#if item.expand?.exercise}
-									<ExerciseListItem exercise={item.expand.exercise} target={formatTarget(item)} />
+									<ExerciseListItem exercise={item.expand.exercise} target={formatTarget(item, item.expand.exercise, authStore.weightUnit)}
+											targetTag={targetLoadTag(item, item.expand.exercise)} />
 								{/if}
 							{/each}
 						</div>

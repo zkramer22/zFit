@@ -2,10 +2,12 @@
 	import { dragHandle } from 'svelte-dnd-action';
 	import type { Exercise } from '$lib/pocketbase/types';
 	import { CATEGORY_COLORS, CATEGORIES, MUSCLE_GROUPS, getLabel } from '$lib/constants';
+	import LoadFactorTag from './LoadFactorTag.svelte';
 
 	interface Props {
 		exercise: Exercise;
 		target?: string;
+		targetTag?: string;
 		showVideos?: boolean;
 		videoCount?: number;
 		editing?: boolean;
@@ -14,7 +16,7 @@
 		oneditTarget?: () => void;
 	}
 
-	let { exercise, target = '', showVideos = false, videoCount, editing = false, ondelete, onselect, oneditTarget }: Props = $props();
+	let { exercise, target = '', targetTag = '', showVideos = false, videoCount, editing = false, ondelete, onselect, oneditTarget }: Props = $props();
 
 	const effectiveVideoCount = $derived(videoCount ?? exercise.video_urls?.length ?? 0);
 </script>
@@ -47,6 +49,7 @@
 			>
 				{target}
 			</button>
+			<LoadFactorTag label={targetTag} />
 		{:else}
 			<button
 				type="button"
@@ -60,6 +63,7 @@
 		<span class="inline-block px-3 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 mt-1.5">
 			{target}
 		</span>
+		<LoadFactorTag label={targetTag} />
 	{/if}
 {/snippet}
 

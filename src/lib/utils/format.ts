@@ -1,76 +1,109 @@
-import type { WorkoutExercise, SetData } from '$lib/pocketbase/types';
+import type { Exercise, Measure, SetData, TargetFields, WeightUnit } from '../pocketbase/types';
+import { LOAD_FACTORS, getLabel } from '../constants';
 
-/** Format a workout exercise target summary, e.g. "3x12 @ 125 lb" */
-export function formatTarget(we: Partial<WorkoutExercise>): string {
-	const parts: string[] = [];
-	if (we.target_sets) parts.push(`${we.target_sets}x`);
-	if (we.target_reps) parts.push(we.target_reps);
-	if (we.target_value && we.target_unit && we.target_unit !== 'bw' && we.target_unit !== 'band') {
-		parts.push(`@ ${we.target_value} ${we.target_unit}`);
-	} else if (we.target_unit === 'bw') {
-		parts.push('BW');
-	} else if (we.target_unit === 'band') {
-		parts.push('Band');
-	}
-	if (we.target_distance && we.target_distance_unit) {
-		parts.push(`${we.target_distance} ${we.target_distance_unit}`);
-	}
-	return parts.join('') || '';
+/** What the formatters need to know about an exercise. Missing means a plain weight exercise. */
+export type ExerciseKind = Partial<Pick<Exercise, 'measure' | 'load_factor'>> | undefined;
+
+/** "Pair" or "Each side", shown as a tag beside the amount so a per-hand or per-side number isn't read as the total. */
+function loadFactorLabel(ex: ExerciseKind, hasAmount: boolean): string {
+	const factor = ex?.load_factor;
+	if (!hasAmount || !factor || factor === 'single') return '';
+	return getLabel(LOAD_FACTORS, factor);
 }
 
-/** Format a single set for display, e.g. "12 reps @ 125 lb" */
-export function formatSetData(s: SetData): string {
+/** Whether a set or target records the amount its measure counts: a load, seconds, or reps on a band. */
+function hasAmount(measure: Measure, v: { load: number | null; seconds: number | null; reps: number | string | null; band: string | null }): boolean {
+	if (measure === 'time') return !!v.seconds;
+	if (measure === 'band') return !!(v.reps || v.band);
+	return !!v.load;
+}
+
+export function targetLoadTag(t: Partial<TargetFields>, ex: ExerciseKind): string {
+	const v = { load: t.target_load || null, seconds: t.target_seconds || null, reps: t.target_reps || null, band: t.target_band || null };
+	return loadFactorLabel(ex, hasAmount(ex?.measure || 'weight', v));
+}
+
+export function setsLoadTag(sets: SetData[], ex: ExerciseKind): string {
+	return loadFactorLabel(ex, !!sets?.some((s) => hasAmount(ex?.measure || 'weight', s)));
+}
+
+/** Load text for one set or target, e.g. "125 lb", "BW + 25 lb", "45 sec", "Red band". */
+function amountText(
+	measure: Measure,
+	v: { load: number | null; loadUnit: WeightUnit | null; seconds: number | null; band: string | null }
+): string {
+	switch (measure) {
+		case 'weight':
+			return v.load != null ? `${v.load} ${v.loadUnit ?? 'lb'}` : '';
+		case 'bodyweight':
+			return v.load ? `BW + ${v.load} ${v.loadUnit ?? 'lb'}` : 'BW';
+		case 'time':
+			return v.seconds != null ? `${v.seconds} sec` : '';
+		case 'band':
+			return v.band ? `${v.band} band` : 'Band';
+	}
+}
+
+/** Workout target summary, e.g. "3x12 @ 125 lb", "3x 45 sec", "3x12 BW" */
+export function formatTarget(t: Partial<TargetFields>, ex: ExerciseKind, loadUnit: WeightUnit): string {
+	const measure: Measure = ex?.measure || 'weight';
+	const parts: string[] = [];
+	if (t.target_sets) parts.push(`${t.target_sets}x`);
+	if (t.target_reps) parts.push(t.target_reps);
+	const amount = amountText(measure, {
+		load: t.target_load || null,
+		loadUnit,
+		seconds: t.target_seconds || null,
+		band: t.target_band || null
+	});
+	if (amount) {
+		const joiner = measure === 'weight' || (measure === 'bodyweight' && t.target_load) || (measure === 'time' && t.target_reps) ? ' @ ' : ' ';
+		parts.push(parts.length ? joiner + amount : amount);
+	}
+	if (t.target_distance && t.target_distance_unit) {
+		parts.push(` ${t.target_distance} ${t.target_distance_unit}`);
+	}
+	return parts.join('').trim();
+}
+
+/** One set, e.g. "12 reps @ 125 lb", "45 sec", "12 reps @ Red band" */
+export function formatSetData(s: SetData, ex: ExerciseKind): string {
+	const measure: Measure = ex?.measure || 'weight';
 	const parts: string[] = [];
 	if (s.reps) parts.push(`${s.reps} reps`);
-	if (s.unit === 'bw') {
-		parts.push('BW');
-	} else if (s.unit === 'band') {
-		parts.push('Band');
-	} else if (s.value != null) {
-		parts.push(`${s.value} ${s.unit}`);
-	}
-	if (s.distance != null && s.distance_unit) {
-		parts.push(`${s.distance} ${s.distance_unit}`);
-	}
+	const amount = amountText(measure, { load: s.load, loadUnit: s.load_unit, seconds: s.seconds, band: s.band });
+	if (amount) parts.push(amount);
+	if (s.distance != null && s.distance_unit) parts.push(`${s.distance} ${s.distance_unit}`);
 	return parts.join(' @ ') || '—';
 }
 
-/** Format a list of sets for display, e.g. "12 reps @ 125 lb / 10 reps @ 135 lb" */
-export function formatSets(sets: SetData[]): string {
+/** A list of sets, e.g. "12 reps @ 125 lb / 10 reps @ 135 lb" */
+export function formatSets(sets: SetData[], ex: ExerciseKind): string {
 	if (!sets?.length) return 'No sets';
-	return sets.map(formatSetData).join(' / ');
+	return sets.map((s) => formatSetData(s, ex)).join(' / ');
 }
 
-/** Compact summary of actual sets in target-style format, e.g. "3x12BW" or "12/10/8 @ 135 lb" */
-export function formatSetsSummary(sets: SetData[]): string {
+/** Compact summary of logged sets in target style, e.g. "3x12 BW" or "12/10/8 @ 135 lb" */
+export function formatSetsSummary(sets: SetData[], ex: ExerciseKind): string {
 	if (!sets?.length) return '';
-	const unit = sets[0].unit || 'lb';
-	const allReps = sets.map(s => s.reps);
-	const allSameReps = allReps.every(r => r === allReps[0]);
+	const measure: Measure = ex?.measure || 'weight';
+	const first = sets[0];
 
 	let repsPart: string;
-	if (allSameReps && allReps[0]) {
+	const allReps = sets.map((s) => s.reps);
+	if (allReps.every((r) => r === allReps[0]) && allReps[0]) {
 		repsPart = `${sets.length}x${allReps[0]}`;
-	} else if (allReps.some(r => r != null)) {
-		repsPart = allReps.map(r => r ?? '–').join('/');
+	} else if (allReps.some((r) => r != null)) {
+		repsPart = allReps.map((r) => r ?? '–').join('/');
 	} else {
 		repsPart = `${sets.length}x`;
 	}
 
-	let unitPart: string;
-	if (unit === 'bw') {
-		unitPart = 'BW';
-	} else if (unit === 'band') {
-		unitPart = 'Band';
-	} else if (sets[0].value != null) {
-		unitPart = `@ ${sets[0].value} ${unit}`;
-	} else {
-		unitPart = unit;
-	}
-
-	let result = `${repsPart} ${unitPart}`.trim();
-	if (sets[0].distance != null && sets[0].distance_unit) {
-		result += ` ${sets[0].distance} ${sets[0].distance_unit}`;
+	const amount = amountText(measure, { load: first.load, loadUnit: first.load_unit, seconds: first.seconds, band: first.band });
+	const joiner = measure === 'weight' || (measure === 'bodyweight' && first.load) || (measure === 'time' && first.reps) ? ' @ ' : ' ';
+	let result = amount ? `${repsPart}${joiner}${amount}` : repsPart;
+	if (first.distance != null && first.distance_unit) {
+		result += ` ${first.distance} ${first.distance_unit}`;
 	}
 	return result;
 }

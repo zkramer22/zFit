@@ -7,7 +7,9 @@
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import CalendarDayWithDots from '$lib/components/CalendarDayWithDots.svelte';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
-	import { formatSets } from '$lib/utils/format';
+	import { formatSets, setsLoadTag } from '$lib/utils/format';
+	import LoadFactorTag from '$lib/components/LoadFactorTag.svelte';
+	import { targetFromSets } from '$lib/measure';
 	import { today, getLocalTimeZone } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
 	import { ChevronDown, LoaderCircle, Trash2, Play, CalendarDays, List, Dumbbell, Eye } from '@lucide/svelte';
@@ -188,19 +190,13 @@
 			});
 
 			for (const entry of entries) {
-				const firstSet = entry.sets?.[0];
 				await pb.collection('workout_exercises').create({
 					user: currentUserId(),
 					workout: workout.id,
 					exercise: entry.exercise,
 					order: entry.order,
 					section: 'main',
-					target_sets: entry.sets?.length || 1,
-					target_reps: firstSet?.reps ? String(firstSet.reps) : '',
-					target_value: firstSet?.value ? String(firstSet.value) : '',
-					target_unit: firstSet?.unit || 'lb',
-					target_distance: firstSet?.distance ? String(firstSet.distance) : '',
-					target_distance_unit: firstSet?.distance_unit || null,
+					...targetFromSets(entry.sets ?? []),
 					notes: ''
 				});
 			}
@@ -410,7 +406,7 @@
 									{/if}
 								</div>
 							</div>
-							<div class="text-xs text-text-muted">{formatSets(entry.sets)}</div>
+							<div class="text-xs text-text-muted">{formatSets(entry.sets, entry.expand?.exercise)} <LoadFactorTag label={setsLoadTag(entry.sets, entry.expand?.exercise)} /></div>
 							{#if entry.notes}
 								<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
 							{/if}

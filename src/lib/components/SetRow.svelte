@@ -1,10 +1,13 @@
 <script lang="ts">
-	import type { SetData } from '$lib/pocketbase/types';
+	import type { Measure, SetData } from '$lib/pocketbase/types';
 	import { NumberStepper } from '$lib/components/ui/number-stepper';
+	import { authStore } from '$lib/stores/auth.svelte';
 
 	interface Props {
 		index: number;
 		set: SetData;
+		measure: Measure;
+		bandLevels: string[];
 		readonly?: boolean;
 		done?: boolean;
 		timerRunning?: boolean;
@@ -13,34 +16,37 @@
 		onstarttimer?: () => void;
 	}
 
-	let { index, set, readonly = false, done = false, timerRunning = false, onupdate, ondone, onstarttimer }: Props = $props();
-
-	const isTimed = $derived(set.unit === 'sec');
+	let { index, set, measure, bandLevels, readonly = false, done = false, timerRunning = false, onupdate, ondone, onstarttimer }: Props = $props();
 
 	let editing = $state(false);
 
-	const valueDisabled = $derived(set.unit === 'bw' || set.unit === 'band');
-	const unitLabel = $derived(
-		set.unit === 'bw' ? 'BW' : set.unit === 'band' ? 'Band' : set.unit
+	const isTimed = $derived(measure === 'time');
+	const amount = $derived(
+		measure === 'weight' ? set.load
+		: measure === 'bodyweight' ? set.load
+		: measure === 'time' ? set.seconds
+		: null
 	);
-	const valueStep = $derived(set.unit === 'lb' || set.unit === 'kg' ? 5 : 1);
+	const amountLabel = $derived(
+		measure === 'weight' ? (set.load_unit ?? 'lb')
+		: measure === 'bodyweight' ? (set.load ? `+${set.load_unit ?? 'lb'}` : 'BW')
+		: measure === 'time' ? 'sec'
+		: (set.band ?? 'Band')
+	);
 
-	const unitOptions: { value: string; label: string }[] = [
-		{ value: 'lb', label: 'lb' },
-		{ value: 'kg', label: 'kg' },
-		{ value: 'sec', label: 'sec' },
-		{ value: 'bw', label: 'BW' },
-		{ value: 'band', label: 'Band' },
-	];
-
-	function cycleUnit() {
-		const idx = unitOptions.findIndex(u => u.value === set.unit);
-		const next = unitOptions[(idx + 1) % unitOptions.length];
-		onupdate('unit', next.value);
-		// Clear value when switching to bw/band
-		if (next.value === 'bw' || next.value === 'band') {
-			onupdate('value', null);
+	function setAmount(v: number | null) {
+		if (measure === 'time') {
+			onupdate('seconds', v);
+			return;
 		}
+		onupdate('load', v);
+		if (!set.load_unit) onupdate('load_unit', authStore.weightUnit);
+	}
+
+	function cycleBand() {
+		if (!bandLevels.length) return;
+		const idx = set.band ? bandLevels.indexOf(set.band) : -1;
+		onupdate('band', bandLevels[(idx + 1) % bandLevels.length]);
 	}
 </script>
 
@@ -53,11 +59,11 @@
 			<!-- Readonly static display -->
 			<span class="flex items-center gap-1.5 text-sm tabular-nums px-2 py-1 -mx-1">
 				<span class="font-medium {set.reps ? 'text-text' : 'text-text-muted'}">{set.reps ?? '–'}</span>
-				{#if !valueDisabled}
-					<span class="text-xs text-text-muted">&times;</span>
-					<span class="font-medium {set.value ? 'text-text' : 'text-text-muted'}">{set.value ?? '–'}</span>
+				<span class="text-xs text-text-muted">&times;</span>
+				{#if measure === 'weight' || measure === 'time' || (measure === 'bodyweight' && set.load)}
+					<span class="font-medium {amount ? 'text-text' : 'text-text-muted'}">{amount ?? '–'}</span>
 				{/if}
-				<span class="text-xs text-text-muted">{unitLabel}</span>
+				<span class="text-xs text-text-muted">{amountLabel}</span>
 			</span>
 			{#if done}
 				<svg class="ml-auto w-3.5 h-3.5 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -65,29 +71,27 @@
 				</svg>
 			{/if}
 		{:else if editing}
-			<!-- Reps stepper -->
 			<NumberStepper
 				class="flex-1 min-w-0"
 				value={set.reps}
 				onchange={(v) => onupdate('reps', v)}
 			/>
-
 			<span class="text-xs text-text-muted shrink-0">&times;</span>
 
-			<!-- Value stepper -->
-			{#if !valueDisabled}
+			{#if measure === 'band'}
+				<button type="button" onclick={cycleBand} disabled={!bandLevels.length}
+					class="text-xs font-medium shrink-0 px-1.5 py-0.5 rounded border border-border text-text-muted hover:border-primary hover:text-primary transition-colors disabled:hover:border-border disabled:hover:text-text-muted"
+					aria-label="Change band"
+				>{amountLabel}</button>
+			{:else}
 				<NumberStepper
 					class="flex-1 min-w-0"
-					value={set.value}
-					onchange={(v) => onupdate('value', v)}
-					step={valueStep}
+					value={amount}
+					onchange={setAmount}
+					step={measure === 'time' ? 5 : measure === 'weight' ? 5 : 2.5}
 				/>
+				<span class="text-xs text-text-muted shrink-0">{measure === 'bodyweight' ? `+${set.load_unit ?? 'lb'}` : amountLabel}</span>
 			{/if}
-
-			<button type="button" onclick={cycleUnit}
-				class="text-xs font-medium shrink-0 px-1.5 py-0.5 rounded border border-border text-text-muted hover:border-primary hover:text-primary transition-colors"
-				aria-label="Change unit"
-			>{unitLabel}</button>
 
 			<!-- Close edit -->
 			<button type="button" onclick={() => editing = false} class="ml-auto p-1.5 rounded-md border border-border text-text-muted hover:border-primary hover:text-primary transition-colors shrink-0" aria-label="Done editing">
@@ -99,16 +103,16 @@
 			<!-- Static display — tap to edit -->
 			<button type="button" onclick={() => editing = true} disabled={timerRunning} class="flex items-center gap-1.5 text-sm tabular-nums hover:bg-surface-hover rounded-lg px-2 py-1 -mx-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
 				<span class="font-medium {set.reps ? 'text-text' : 'text-text-muted'}">{set.reps ?? '–'}</span>
-				{#if !valueDisabled}
-					<span class="text-xs text-text-muted">&times;</span>
-					<span class="font-medium {set.value ? 'text-text' : 'text-text-muted'}">{set.value ?? '–'}</span>
+				<span class="text-xs text-text-muted">&times;</span>
+				{#if measure === 'weight' || measure === 'time' || (measure === 'bodyweight' && set.load)}
+					<span class="font-medium {amount ? 'text-text' : 'text-text-muted'}">{amount ?? '–'}</span>
 				{/if}
-				<span class="text-xs text-text-muted">{unitLabel}</span>
+				<span class="text-xs text-text-muted">{amountLabel}</span>
 			</button>
 
 			<div class="ml-auto flex items-center gap-1 shrink-0">
 				<!-- Play timer (timed exercises only) -->
-				{#if isTimed && set.value && onstarttimer}
+				{#if isTimed && set.seconds && onstarttimer}
 					<button
 						type="button"
 						onclick={onstarttimer}

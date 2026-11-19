@@ -1,12 +1,17 @@
 import type { RecordModel } from 'pocketbase';
 
-export type SetUnit = 'lb' | 'kg' | 'sec' | 'bw' | 'band';
+export type Measure = 'weight' | 'bodyweight' | 'time' | 'band';
+export type LoadFactor = 'single' | 'pair' | 'each_side';
+export type WeightUnit = 'lb' | 'kg';
 export type DistanceUnit = 'yds' | 'ft' | 'm';
 
 export interface User extends RecordModel {
 	email: string;
 	name: string;
 	avatar: string;
+	weight_unit: WeightUnit | '';
+	/** The user's resistance bands, lightest first. */
+	band_levels: string[] | null;
 }
 
 export interface Exercise extends RecordModel {
@@ -16,6 +21,9 @@ export interface Exercise extends RecordModel {
 	muscle_groups: string[];
 	category: 'strength' | 'stability' | 'core' | 'warmup' | 'posterior_chain' | 'pt' | 'bodyweight';
 	video_urls: VideoRef[];
+	measure: Measure;
+	/** Empty means single. */
+	load_factor: LoadFactor | '';
 }
 
 export interface VideoRef {
@@ -31,18 +39,23 @@ export interface Workout extends RecordModel {
 	tags: string[];
 }
 
-export interface WorkoutExercise extends RecordModel {
+export interface TargetFields {
+	target_sets: number;
+	target_reps: string;
+	/** In the user's weight unit. */
+	target_load: number | null;
+	target_seconds: number | null;
+	target_band: string;
+	target_distance: string;
+	target_distance_unit: DistanceUnit | null;
+}
+
+export interface WorkoutExercise extends RecordModel, TargetFields {
 	user: string;
 	workout: string;
 	exercise: string;
 	order: number;
 	section: 'warmup' | 'main' | 'core' | 'cooldown';
-	target_sets: number;
-	target_reps: string;
-	target_value: string;
-	target_unit: SetUnit;
-	target_distance: string;
-	target_distance_unit: DistanceUnit | null;
 	notes: string;
 }
 
@@ -69,10 +82,14 @@ export interface Session extends RecordModel {
 	completed: boolean;
 }
 
+/** Each exercise's measure decides which fields a set uses. */
 export interface SetData {
 	reps: number | null;
-	value: number | null;
-	unit: SetUnit;
+	/** Weight lifted, or weight added for bodyweight moves. */
+	load: number | null;
+	load_unit: WeightUnit | null;
+	seconds: number | null;
+	band: string | null;
 	distance: number | null;
 	distance_unit: DistanceUnit | null;
 	notes: string;

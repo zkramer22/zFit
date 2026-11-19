@@ -24,6 +24,7 @@ interface ExerciseDef {
 	description: string;
 	muscle_groups: string[];
 	category: string;
+	measure: 'weight' | 'bodyweight' | 'time' | 'band';
 }
 
 // Valid PB muscle_groups select values:
@@ -34,31 +35,36 @@ const exercises: ExerciseDef[] = [
 		name: 'Banded Clamshells',
 		description: 'Side-lying. 15 each side. Neural activation for hip external rotators.',
 		muscle_groups: ['glutes'],
-		category: 'warmup'
+		category: 'warmup',
+		measure: 'band'
 	},
 	{
 		name: 'Banded Fire Hydrants',
 		description: '15 each side. Hip abduction in quadruped position.',
 		muscle_groups: ['glutes', 'abductors'],
-		category: 'warmup'
+		category: 'warmup',
+		measure: 'band'
 	},
 	{
 		name: 'Banded Monster Walks',
 		description: '20 steps each direction. Lateral glute activation under tension.',
 		muscle_groups: ['glutes', 'abductors'],
-		category: 'warmup'
+		category: 'warmup',
+		measure: 'band'
 	},
 	{
 		name: 'Side-Lying Straight Leg Lift',
 		description: '15 each side. Hip abduction from side-lying position.',
 		muscle_groups: ['glutes', 'abductors'],
-		category: 'warmup'
+		category: 'warmup',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Single-Leg Balance Hold',
 		description: 'Opposite knee to 90°. 30 sec each side. Proprioception and stability.',
 		muscle_groups: ['glutes', 'core', 'calves'],
-		category: 'warmup'
+		category: 'warmup',
+		measure: 'bodyweight'
 	},
 
 	// Lower Body Strength
@@ -66,31 +72,36 @@ const exercises: ExerciseDef[] = [
 		name: 'Leg Press (Bilateral)',
 		description: 'Machine, bilateral. Moderate width foot placement, feet slightly high to reduce deep hip flexion. Depth only as deep as comfortable.',
 		muscle_groups: ['quads', 'glutes', 'hamstrings'],
-		category: 'strength'
+		category: 'strength',
+		measure: 'weight'
 	},
 	{
 		name: 'Leg Press (Single Leg)',
 		description: 'Machine, single leg. Lighter than bilateral. Right leg may need less weight or fewer reps.',
 		muscle_groups: ['quads', 'glutes', 'hamstrings'],
-		category: 'strength'
+		category: 'strength',
+		measure: 'weight'
 	},
 	{
 		name: 'Leg Curl Machine',
 		description: 'Seated or lying — whichever feels better on the hip. Isolated hamstring work, no hip stress.',
 		muscle_groups: ['hamstrings'],
-		category: 'strength'
+		category: 'strength',
+		measure: 'weight'
 	},
 	{
 		name: 'Hip Abduction Machine',
 		description: 'Light to moderate. Reinforces banded glute work under more consistent load. Controlled on the return.',
 		muscle_groups: ['glutes', 'abductors'],
-		category: 'strength'
+		category: 'strength',
+		measure: 'weight'
 	},
 	{
 		name: 'Goblet Squat',
 		description: 'Kettlebell, partial ROM. Only go as deep as you can while maintaining control and zero pain. Heels elevated on a plate if needed.',
 		muscle_groups: ['quads', 'glutes', 'core'],
-		category: 'strength'
+		category: 'strength',
+		measure: 'weight'
 	},
 
 	// Posterior Chain
@@ -98,25 +109,29 @@ const exercises: ExerciseDef[] = [
 		name: 'Back Extension Hold',
 		description: 'Back extension chair — isometric hold progression from LowBackAbility. Hold at top position for time, building toward 60 sec holds, then progress to reps.',
 		muscle_groups: ['back', 'glutes', 'hamstrings'],
-		category: 'posterior_chain'
+		category: 'posterior_chain',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Kettlebell Romanian Deadlift',
 		description: 'Hip hinge learning movement. Push hips back, slight knee bend. Only go as low as you can maintain neutral spine with no hip pinching.',
 		muscle_groups: ['hamstrings', 'glutes', 'back'],
-		category: 'posterior_chain'
+		category: 'posterior_chain',
+		measure: 'weight'
 	},
 	{
 		name: 'Glute Bridge',
 		description: 'Floor-based, progressing to hip thrust. Squeeze glutes hard at top, hold 2 sec. Bilateral to start, progress to single-leg.',
 		muscle_groups: ['glutes', 'hamstrings'],
-		category: 'posterior_chain'
+		category: 'posterior_chain',
+		measure: 'bodyweight'
 	},
 	{
 		name: "Farmer's Carry",
 		description: 'Moderate weight KBs or DBs, one in each hand. Walk with deliberate, even steps. Builds grip, core bracing, and hip stability under load.',
 		muscle_groups: ['core', 'shoulders', 'glutes'],
-		category: 'posterior_chain'
+		category: 'posterior_chain',
+		measure: 'weight'
 	},
 
 	// Stability & Unilateral
@@ -124,31 +139,36 @@ const exercises: ExerciseDef[] = [
 		name: 'Balance Board Squats',
 		description: 'RevBalance 101 v2 or BOSU ball. KB goblet hold. Progression: add weight only when balance feels automatic.',
 		muscle_groups: ['quads', 'glutes', 'core', 'calves'],
-		category: 'stability'
+		category: 'stability',
+		measure: 'weight'
 	},
 	{
 		name: 'Step-Ups',
 		description: 'Low box (6-8 inches). Drive through heel of working leg, don\'t push off back foot. Unilateral quad/glute in a functional pattern.',
 		muscle_groups: ['quads', 'glutes'],
-		category: 'stability'
+		category: 'stability',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Cable Hip Abduction',
 		description: 'Standing, ankle cuff. Light weight — stability challenge as much as strengthening. Stand tall, don\'t lean away.',
 		muscle_groups: ['glutes', 'abductors'],
-		category: 'stability'
+		category: 'stability',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Cable Hip Extension',
 		description: 'Standing, ankle cuff, kick back. Light, glute focused. Squeeze at top, don\'t hyperextend low back. Avoid adduction past midline.',
 		muscle_groups: ['glutes', 'hamstrings'],
-		category: 'stability'
+		category: 'stability',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Single-Leg Calf Raise',
 		description: 'On a step. Full range — drop heel below step, rise to full extension. Important for skiing boots and landing mechanics.',
 		muscle_groups: ['calves'],
-		category: 'stability'
+		category: 'stability',
+		measure: 'bodyweight'
 	},
 
 	// Core exercises (used across days)
@@ -156,25 +176,29 @@ const exercises: ExerciseDef[] = [
 		name: 'Dead Bugs',
 		description: 'Keep low back pressed into floor. Slow and controlled — anti-extension core stability. Modify right side leg extension if hip flexor demand is too much.',
 		muscle_groups: ['core', 'hip_flexors'],
-		category: 'core'
+		category: 'core',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Pallof Press',
 		description: 'Cable or band. Anti-rotation. Stand perpendicular to cable, press handle straight out from chest, hold 2 sec, return. Light resistance.',
 		muscle_groups: ['core'],
-		category: 'core'
+		category: 'core',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Bird-Dog',
 		description: 'Hold top position 3 sec each rep. Anti-extension + anti-rotation. Complements back extension work.',
 		muscle_groups: ['core', 'back', 'glutes'],
-		category: 'core'
+		category: 'core',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Side Plank',
 		description: 'Modified from knees if needed. Build toward full side plank from feet. Lateral core stability for skiing and cutting.',
 		muscle_groups: ['core'],
-		category: 'core'
+		category: 'core',
+		measure: 'bodyweight'
 	},
 
 	// PT / Rehab (isolation, low intensity, hip-focused)
@@ -182,31 +206,36 @@ const exercises: ExerciseDef[] = [
 		name: 'Single Leg Glute Bridge',
 		description: 'Lie on your back, knees bent, feet flat. Drive through one heel to lift hips until body forms a straight line. Squeeze glute hard at top and hold 2–3 sec. Opposite leg either bent (easier) or extended straight (harder).',
 		muscle_groups: ['glutes', 'hamstrings'],
-		category: 'pt'
+		category: 'pt',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Clamshells',
 		description: 'Side-lying, hips stacked, knees bent ~45°, feet together. Rotate top knee open toward ceiling without pelvis rolling back. Targets glute med and external hip rotators.',
 		muscle_groups: ['glutes', 'abductors'],
-		category: 'pt'
+		category: 'pt',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Side-Lying Hip Abduction',
 		description: 'Side-lying with top leg straight. Lift leg to ~45° keeping toes pointed slightly down, lower with control. Don\'t let pelvis rock.',
 		muscle_groups: ['glutes', 'abductors'],
-		category: 'pt'
+		category: 'pt',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Active Straight Leg Raise',
 		description: 'Lie on back, one knee bent and foot flat, other leg straight. Slowly raise straight leg to ~45°, hold 1 sec, lower with control. Strengthens hip flexors through range without hip compression.',
 		muscle_groups: ['hip_flexors'],
-		category: 'pt'
+		category: 'pt',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Standing Knee Drive',
 		description: 'Stand near wall for balance. Slowly drive one knee up to hip height in a controlled march, hold 1–2 sec at top, then lower. Actively loads the psoas.',
 		muscle_groups: ['hip_flexors'],
-		category: 'pt'
+		category: 'pt',
+		measure: 'bodyweight'
 	},
 
 	// Bodyweight (compound, no equipment)
@@ -214,31 +243,36 @@ const exercises: ExerciseDef[] = [
 		name: 'Bodyweight Squat',
 		description: 'Feet shoulder-width, toes slightly out. Sit back and down with chest up, knees tracking over toes. Slow controlled descent (3 sec down). Pause briefly at bottom, drive through heels.',
 		muscle_groups: ['quads', 'glutes'],
-		category: 'bodyweight'
+		category: 'bodyweight',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Reverse Lunge',
 		description: 'Stand tall, step one foot back, lower back knee toward floor. Front shin stays vertical. Drive through front heel to return. Stepping back reduces anterior hip stress — better for labral recovery.',
 		muscle_groups: ['quads', 'glutes', 'hamstrings'],
-		category: 'bodyweight'
+		category: 'bodyweight',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Bulgarian Split Squat',
 		description: 'Stand in front of a chair/bench, top of one foot on surface behind you. Lower back knee toward floor by bending front leg, torso upright. Drive through front heel. Hits glutes, quads, hamstrings hard even without weight.',
 		muscle_groups: ['quads', 'glutes', 'hamstrings'],
-		category: 'bodyweight'
+		category: 'bodyweight',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Single Leg Romanian Deadlift',
 		description: 'Stand on one leg with soft knee bend. Hinge at hip, torso forward and free leg back like a seesaw. Lower until hamstring stretch, drive hip forward to stand. Keep back flat. Balance demand makes this challenging without weight.',
 		muscle_groups: ['hamstrings', 'glutes'],
-		category: 'bodyweight'
+		category: 'bodyweight',
+		measure: 'bodyweight'
 	},
 	{
 		name: 'Nordic Curl',
 		description: 'Anchor feet under couch/bed. Kneel upright, slowly lower torso toward floor resisting with hamstrings as long as possible. Use hands to catch and push back up. Start slow — these are hard.',
 		muscle_groups: ['hamstrings'],
-		category: 'bodyweight'
+		category: 'bodyweight',
+		measure: 'bodyweight'
 	},
 
 	// Warmup / Mobility
@@ -246,7 +280,8 @@ const exercises: ExerciseDef[] = [
 		name: 'Kneeling Hip Flexor Stretch',
 		description: 'Low lunge, one knee on floor. Tuck tailbone under (posterior pelvic tilt) to neutralize lower back — this creates the psoas stretch. Hold and breathe. Post-surgery hip flexors tend to get tight and guarded.',
 		muscle_groups: ['hip_flexors'],
-		category: 'warmup'
+		category: 'warmup',
+		measure: 'bodyweight'
 	},
 ];
 
@@ -281,8 +316,9 @@ interface WorkoutExerciseDef {
 	order: number;
 	target_sets: number;
 	target_reps: string;
-	target_value: string;
-	target_unit: 'lb' | 'kg' | 'sec' | 'bw' | 'band';
+	target_load: number | null;
+	target_seconds: number | null;
+	target_band: string;
 	target_distance: string;
 	target_distance_unit: 'yds' | 'ft' | 'm' | null;
 	notes: string;
@@ -290,49 +326,49 @@ interface WorkoutExerciseDef {
 
 // Warmup block shared by all 3 workouts
 const warmupBlock: Omit<WorkoutExerciseDef, 'workoutIndex'>[] = [
-	{ exerciseName: 'Banded Clamshells', section: 'warmup', order: 1, target_sets: 1, target_reps: '15 each side', target_value: '', target_unit: 'band', target_distance: '', target_distance_unit: null, notes: '' },
-	{ exerciseName: 'Banded Fire Hydrants', section: 'warmup', order: 2, target_sets: 1, target_reps: '15 each side', target_value: '', target_unit: 'band', target_distance: '', target_distance_unit: null, notes: '' },
-	{ exerciseName: 'Banded Monster Walks', section: 'warmup', order: 3, target_sets: 1, target_reps: '20 each direction', target_value: '', target_unit: 'band', target_distance: '', target_distance_unit: null, notes: '' },
-	{ exerciseName: 'Side-Lying Straight Leg Lift', section: 'warmup', order: 4, target_sets: 1, target_reps: '15 each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: '' },
-	{ exerciseName: 'Single-Leg Balance Hold', section: 'warmup', order: 5, target_sets: 1, target_reps: '30 sec each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Banded Clamshells', section: 'warmup', order: 1, target_sets: 1, target_reps: '15 each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Banded Fire Hydrants', section: 'warmup', order: 2, target_sets: 1, target_reps: '15 each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Banded Monster Walks', section: 'warmup', order: 3, target_sets: 1, target_reps: '20 each direction', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Side-Lying Straight Leg Lift', section: 'warmup', order: 4, target_sets: 1, target_reps: '15 each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: '' },
+	{ exerciseName: 'Single-Leg Balance Hold', section: 'warmup', order: 5, target_sets: 1, target_reps: '30 sec each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: '' },
 ];
 
 const workoutExercises: WorkoutExerciseDef[] = [
 	// Workout 0 (Lower Body Strength + Core) — warmup
 	...warmupBlock.map(e => ({ ...e, workoutIndex: 0 })),
 	// Workout 0 — main
-	{ workoutIndex: 0, exerciseName: 'Leg Press (Bilateral)', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_value: '125', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Feet slightly high on platform. Depth above 90° at hip.' },
-	{ workoutIndex: 0, exerciseName: 'Leg Press (Single Leg)', section: 'main', order: 7, target_sets: 2, target_reps: '10-12 each', target_value: '75', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Right leg may need less weight' },
-	{ workoutIndex: 0, exerciseName: 'Leg Curl Machine', section: 'main', order: 8, target_sets: 3, target_reps: '12-15', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Start light. Critical for hip stability and ski readiness.' },
-	{ workoutIndex: 0, exerciseName: 'Hip Abduction Machine', section: 'main', order: 9, target_sets: 3, target_reps: '15', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Controlled on return. Don\'t let it slam shut.' },
-	{ workoutIndex: 0, exerciseName: 'Goblet Squat', section: 'main', order: 10, target_sets: 2, target_reps: '12-15', target_value: '20', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Partial ROM. Heels elevated on plate if needed. Deepen ROM before adding weight.' },
+	{ workoutIndex: 0, exerciseName: 'Leg Press (Bilateral)', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_load: 125, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Feet slightly high on platform. Depth above 90° at hip.' },
+	{ workoutIndex: 0, exerciseName: 'Leg Press (Single Leg)', section: 'main', order: 7, target_sets: 2, target_reps: '10-12 each', target_load: 75, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Right leg may need less weight' },
+	{ workoutIndex: 0, exerciseName: 'Leg Curl Machine', section: 'main', order: 8, target_sets: 3, target_reps: '12-15', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Start light. Critical for hip stability and ski readiness.' },
+	{ workoutIndex: 0, exerciseName: 'Hip Abduction Machine', section: 'main', order: 9, target_sets: 3, target_reps: '15', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Controlled on return. Don\'t let it slam shut.' },
+	{ workoutIndex: 0, exerciseName: 'Goblet Squat', section: 'main', order: 10, target_sets: 2, target_reps: '12-15', target_load: 20, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Partial ROM. Heels elevated on plate if needed. Deepen ROM before adding weight.' },
 	// Workout 0 — core
-	{ workoutIndex: 0, exerciseName: 'Dead Bugs', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Keep low back pressed into floor' },
-	{ workoutIndex: 0, exerciseName: 'Pallof Press', section: 'core', order: 12, target_sets: 3, target_reps: '10 each side', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Anti-rotation. Light resistance.' },
+	{ workoutIndex: 0, exerciseName: 'Dead Bugs', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Keep low back pressed into floor' },
+	{ workoutIndex: 0, exerciseName: 'Pallof Press', section: 'core', order: 12, target_sets: 3, target_reps: '10 each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Anti-rotation. Light resistance.' },
 
 	// Workout 1 (Posterior Chain + Back) — warmup
 	...warmupBlock.map(e => ({ ...e, workoutIndex: 1 })),
 	// Workout 1 — main
-	{ workoutIndex: 1, exerciseName: 'Back Extension Hold', section: 'main', order: 6, target_sets: 3, target_reps: '30-45 sec hold', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Iso hold progression. Log hold times every session.' },
-	{ workoutIndex: 1, exerciseName: 'Kettlebell Romanian Deadlift', section: 'main', order: 7, target_sets: 3, target_reps: '10-12', target_value: '20', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Deepen hinge before adding weight' },
-	{ workoutIndex: 1, exerciseName: 'Glute Bridge', section: 'main', order: 8, target_sets: 3, target_reps: '15', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Squeeze hard at top, hold 2 sec. Progress: BW bilateral → BW single leg → weighted.' },
-	{ workoutIndex: 1, exerciseName: 'Leg Curl Machine', section: 'main', order: 9, target_sets: 3, target_reps: '12-15', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Same as Day 1 — hammering hamstrings 2x/week' },
-	{ workoutIndex: 1, exerciseName: "Farmer's Carry", section: 'main', order: 10, target_sets: 3, target_reps: '30-40 sec', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Moderate weight. Deliberate, even steps.' },
+	{ workoutIndex: 1, exerciseName: 'Back Extension Hold', section: 'main', order: 6, target_sets: 3, target_reps: '30-45 sec hold', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Iso hold progression. Log hold times every session.' },
+	{ workoutIndex: 1, exerciseName: 'Kettlebell Romanian Deadlift', section: 'main', order: 7, target_sets: 3, target_reps: '10-12', target_load: 20, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Deepen hinge before adding weight' },
+	{ workoutIndex: 1, exerciseName: 'Glute Bridge', section: 'main', order: 8, target_sets: 3, target_reps: '15', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Squeeze hard at top, hold 2 sec. Progress: BW bilateral → BW single leg → weighted.' },
+	{ workoutIndex: 1, exerciseName: 'Leg Curl Machine', section: 'main', order: 9, target_sets: 3, target_reps: '12-15', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Same as Day 1 — hammering hamstrings 2x/week' },
+	{ workoutIndex: 1, exerciseName: "Farmer's Carry", section: 'main', order: 10, target_sets: 3, target_reps: '30-40 sec', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Moderate weight. Deliberate, even steps.' },
 	// Workout 1 — core
-	{ workoutIndex: 1, exerciseName: 'Bird-Dog', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Hold top position 3 sec' },
-	{ workoutIndex: 1, exerciseName: 'Side Plank', section: 'core', order: 12, target_sets: 3, target_reps: '20-30 sec each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Modified from knees if needed' },
+	{ workoutIndex: 1, exerciseName: 'Bird-Dog', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Hold top position 3 sec' },
+	{ workoutIndex: 1, exerciseName: 'Side Plank', section: 'core', order: 12, target_sets: 3, target_reps: '20-30 sec each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Modified from knees if needed' },
 
 	// Workout 2 (Stability & Unilateral + Core) — warmup
 	...warmupBlock.map(e => ({ ...e, workoutIndex: 2 })),
 	// Workout 2 — main
-	{ workoutIndex: 2, exerciseName: 'Balance Board Squats', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_value: '20', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'RevBalance or BOSU. Add weight only when balance is automatic.' },
-	{ workoutIndex: 2, exerciseName: 'Step-Ups', section: 'main', order: 7, target_sets: 3, target_reps: '10 each leg', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Low box 6-8 inches. Drive through heel, don\'t push off back foot.' },
-	{ workoutIndex: 2, exerciseName: 'Cable Hip Abduction', section: 'main', order: 8, target_sets: 2, target_reps: '12-15 each leg', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'Stand tall, don\'t lean away' },
-	{ workoutIndex: 2, exerciseName: 'Cable Hip Extension', section: 'main', order: 9, target_sets: 2, target_reps: '12-15 each leg', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'No adduction past midline' },
-	{ workoutIndex: 2, exerciseName: 'Single-Leg Calf Raise', section: 'main', order: 10, target_sets: 3, target_reps: '15 each leg', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Full range on a step' },
+	{ workoutIndex: 2, exerciseName: 'Balance Board Squats', section: 'main', order: 6, target_sets: 3, target_reps: '12-15', target_load: 20, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'RevBalance or BOSU. Add weight only when balance is automatic.' },
+	{ workoutIndex: 2, exerciseName: 'Step-Ups', section: 'main', order: 7, target_sets: 3, target_reps: '10 each leg', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Low box 6-8 inches. Drive through heel, don\'t push off back foot.' },
+	{ workoutIndex: 2, exerciseName: 'Cable Hip Abduction', section: 'main', order: 8, target_sets: 2, target_reps: '12-15 each leg', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Stand tall, don\'t lean away' },
+	{ workoutIndex: 2, exerciseName: 'Cable Hip Extension', section: 'main', order: 9, target_sets: 2, target_reps: '12-15 each leg', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'No adduction past midline' },
+	{ workoutIndex: 2, exerciseName: 'Single-Leg Calf Raise', section: 'main', order: 10, target_sets: 3, target_reps: '15 each leg', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Full range on a step' },
 	// Workout 2 — core
-	{ workoutIndex: 2, exerciseName: 'Pallof Press', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_value: '', target_unit: 'lb', target_distance: '', target_distance_unit: null, notes: 'With lateral step away from anchor' },
-	{ workoutIndex: 2, exerciseName: 'Dead Bugs', section: 'core', order: 12, target_sets: 3, target_reps: '8 each side', target_value: '', target_unit: 'bw', target_distance: '', target_distance_unit: null, notes: 'Slow tempo: 3 sec extend, 3 sec return' },
+	{ workoutIndex: 2, exerciseName: 'Pallof Press', section: 'core', order: 11, target_sets: 3, target_reps: '8 each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'With lateral step away from anchor' },
+	{ workoutIndex: 2, exerciseName: 'Dead Bugs', section: 'core', order: 12, target_sets: 3, target_reps: '8 each side', target_load: null, target_seconds: null, target_band: '', target_distance: '', target_distance_unit: null, notes: 'Slow tempo: 3 sec extend, 3 sec return' },
 ];
 
 // ── Program definition ────────────────────────────────────────────────
@@ -373,6 +409,7 @@ async function seed() {
 				description: ex.description,
 				muscle_groups: ex.muscle_groups,
 				category: ex.category,
+				measure: ex.measure,
 				video_urls: []
 			});
 			console.log(`  + ${ex.name}`);
@@ -426,8 +463,9 @@ async function seed() {
 			section: we.section,
 			target_sets: we.target_sets,
 			target_reps: we.target_reps,
-			target_value: we.target_value,
-			target_unit: we.target_unit,
+			target_load: we.target_load,
+			target_seconds: we.target_seconds,
+			target_band: we.target_band,
 			target_distance: we.target_distance,
 			target_distance_unit: we.target_distance_unit,
 			notes: we.notes
