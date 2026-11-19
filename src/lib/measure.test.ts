@@ -75,3 +75,13 @@ test('pair and each-side loads get a tag label, not text in the summary', () => 
 	assert.equal(setsLoadTag([{ ...s, load: null }], pair), '');
 	assert.equal(targetLoadTag(t, undefined), '');
 });
+
+test('each side tags band reps and timed holds too', () => {
+	const bandSide = { measure: 'band' as const, load_factor: 'each_side' as const };
+	assert.equal(targetLoadTag(target({ target_sets: 2, target_reps: '15' }), bandSide), 'Each side');
+	assert.equal(setsLoadTag([{ ...emptySet('band', 'lb'), reps: 15 }], bandSide), 'Each side');
+	assert.equal(setsLoadTag([emptySet('band', 'lb')], bandSide), '');
+	const holdSide = { measure: 'time' as const, load_factor: 'each_side' as const };
+	assert.equal(setsLoadTag([{ ...emptySet('time', 'lb'), seconds: 30 }], holdSide), 'Each side');
+	assert.equal(targetLoadTag(target({ target_sets: 2 }), holdSide), '');
+});

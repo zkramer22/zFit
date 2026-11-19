@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 import { pocketbaseUrl } from './target.ts';
-import { isLegacySet, migrateSet, inferMeasure, migrateTarget, halveLoads, TOTAL_LOGGED, LOGGED_PER_HAND } from './measure-migration.ts';
+import { isLegacySet, migrateSet, inferMeasure, migrateTarget, halveLoads, LOAD_FACTOR_SET, LOGGED_PER_HAND } from './measure-migration.ts';
 
 /**
  * Moves exercises to a per-exercise measure (weight, bodyweight, time, band).
@@ -104,12 +104,13 @@ async function run() {
 		console.log(`User ${u.email}: weight unit → ${c.kg > c.lb ? 'kg' : 'lb'} (lb ${c.lb}, kg ${c.kg})`);
 	}
 
-	const totalLogged = exercises.filter((ex) => TOTAL_LOGGED[ex.name] && !ex.load_factor);
-	for (const ex of totalLogged) {
+	const factorPlan = exercises.filter((ex) => LOAD_FACTOR_SET[ex.name] && !ex.load_factor);
+	for (const ex of factorPlan) {
+		const { factor, halve } = LOAD_FACTOR_SET[ex.name];
 		const sets = entries
 			.filter((e) => e.exercise === ex.id && !LOGGED_PER_HAND.has(e.id))
 			.reduce((n, e) => n + (e.sets ?? []).length, 0);
-		console.log(`Load factor: ${ex.name} → ${TOTAL_LOGGED[ex.name]}, halving loads in ${sets} set(s) and its targets`);
+		console.log(`Load factor: ${ex.name} → ${factor}${halve ? `, halving loads in ${sets} set(s) and its targets` : ''}`);
 	}
 
 	if (!APPLY) {
@@ -152,18 +153,22 @@ async function run() {
 	console.log(`Targets rewritten: ${targetCount}`);
 
 	// Runs after the set rewrite, so it reads the migrated sets. load_factor is set last and marks it done.
-	for (const ex of totalLogged) {
-		const exEntries = (await pb.collection('session_entries').getFullList({ filter: `exercise = "${ex.id}"` }))
-			.filter((e) => !LOGGED_PER_HAND.has(e.id));
-		for (const e of exEntries) {
-			await pb.collection('session_entries').update(e.id, { sets: halveLoads(e.sets ?? []) });
+	for (const ex of factorPlan) {
+		const { factor, halve } = LOAD_FACTOR_SET[ex.name];
+		if (halve) {
+			const exEntries = (await pb.collection('session_entries').getFullList({ filter: `exercise = "${ex.id}"` }))
+				.filter((e) => !LOGGED_PER_HAND.has(e.id));
+			for (const e of exEntries) {
+				await pb.collection('session_entries').update(e.id, { sets: halveLoads(e.sets ?? []) });
+			}
+			const exTargets = await pb.collection('workout_exercises').getFullList({ filter: `exercise = "${ex.id}"` });
+			for (const t of exTargets) {
+				if (t.target_load) await pb.collection('workout_exercises').update(t.id, { target_load: t.target_load / 2 });
+			}
+			console.log(`${ex.name}: ${exEntries.length} entries and ${exTargets.length} targets halved`);
 		}
-		const exTargets = await pb.collection('workout_exercises').getFullList({ filter: `exercise = "${ex.id}"` });
-		for (const t of exTargets) {
-			if (t.target_load) await pb.collection('workout_exercises').update(t.id, { target_load: t.target_load / 2 });
-		}
-		await pb.collection('exercises').update(ex.id, { load_factor: TOTAL_LOGGED[ex.name] });
-		console.log(`${ex.name}: ${TOTAL_LOGGED[ex.name]}, ${exEntries.length} entries and ${exTargets.length} targets halved`);
+		await pb.collection('exercises').update(ex.id, { load_factor: factor });
+		console.log(`${ex.name}: load factor ${factor}`);
 	}
 
 	console.log('Schema cleanup:');

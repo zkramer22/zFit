@@ -59,12 +59,16 @@ export function migrateTarget(value: string, unit: string): { target_load: numbe
 }
 
 /**
- * Exercises whose loads were logged as the total of both dumbbells or both sides. They move to a
- * load factor, which doubles the per-hand or per-side number for volume, so their logged loads halve.
+ * Exercises that get a load factor, which doubles the per-hand or per-side number for volume.
+ * `halve` marks those logged as the total of both dumbbells or both sides, so their loads halve;
+ * the rest were already logged per side.
  */
-export const TOTAL_LOGGED: Record<string, 'pair' | 'each_side'> = {
-	'Dumbbell Bench Press': 'pair',
-	'Dumbbell Row': 'each_side'
+export const LOAD_FACTOR_SET: Record<string, { factor: 'pair' | 'each_side'; halve: boolean }> = {
+	'Dumbbell Bench Press': { factor: 'pair', halve: true },
+	'Dumbbell Row': { factor: 'each_side', halve: true },
+	'Banded Fire Hydrants': { factor: 'each_side', halve: false },
+	'Banded Side Step / Strafe': { factor: 'each_side', halve: false },
+	'Banded Monster Walks': { factor: 'each_side', halve: false }
 };
 
 /** Session entries of those exercises that were logged per dumbbell or per side after all, so they keep their loads. */

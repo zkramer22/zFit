@@ -4,19 +4,27 @@ import { LOAD_FACTORS, getLabel } from '../constants';
 /** What the formatters need to know about an exercise. Missing means a plain weight exercise. */
 export type ExerciseKind = Partial<Pick<Exercise, 'measure' | 'load_factor'>> | undefined;
 
-/** "Pair" or "Each side", shown as a tag beside a load so a per-hand number isn't read as the total. */
-function loadFactorLabel(ex: ExerciseKind, hasLoad: boolean): string {
+/** "Pair" or "Each side", shown as a tag beside the amount so a per-hand or per-side number isn't read as the total. */
+function loadFactorLabel(ex: ExerciseKind, hasAmount: boolean): string {
 	const factor = ex?.load_factor;
-	if (!hasLoad || !factor || factor === 'single') return '';
+	if (!hasAmount || !factor || factor === 'single') return '';
 	return getLabel(LOAD_FACTORS, factor);
 }
 
+/** Whether a set or target records the amount its measure counts: a load, seconds, or reps on a band. */
+function hasAmount(measure: Measure, v: { load: number | null; seconds: number | null; reps: number | string | null; band: string | null }): boolean {
+	if (measure === 'time') return !!v.seconds;
+	if (measure === 'band') return !!(v.reps || v.band);
+	return !!v.load;
+}
+
 export function targetLoadTag(t: Partial<TargetFields>, ex: ExerciseKind): string {
-	return loadFactorLabel(ex, !!t.target_load);
+	const v = { load: t.target_load || null, seconds: t.target_seconds || null, reps: t.target_reps || null, band: t.target_band || null };
+	return loadFactorLabel(ex, hasAmount(ex?.measure || 'weight', v));
 }
 
 export function setsLoadTag(sets: SetData[], ex: ExerciseKind): string {
-	return loadFactorLabel(ex, !!sets?.some((s) => !!s.load));
+	return loadFactorLabel(ex, !!sets?.some((s) => hasAmount(ex?.measure || 'weight', s)));
 }
 
 /** Load text for one set or target, e.g. "125 lb", "BW + 25 lb", "45 sec", "Red band". */

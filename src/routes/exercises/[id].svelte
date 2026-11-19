@@ -435,12 +435,10 @@
 							<span class="block text-sm font-medium mb-1">Measure</span>
 							<SelectButton options={MEASURES} value={editMeasure} onchange={(v) => editMeasure = v as Measure} />
 						</div>
-						{#if editMeasure === 'weight' || editMeasure === 'bodyweight'}
-							<div>
-								<span class="block text-sm font-medium mb-1">Load</span>
-								<SelectButton options={LOAD_FACTORS} value={editLoadFactor} onchange={(v) => editLoadFactor = v as LoadFactor} />
-							</div>
-						{/if}
+						<div>
+							<span class="block text-sm font-medium mb-1">Load</span>
+							<SelectButton options={LOAD_FACTORS} value={editLoadFactor} onchange={(v) => editLoadFactor = v as LoadFactor} />
+						</div>
 					{/if}
 					<div>
 						<label for="edit-desc" class="block text-sm font-medium mb-1">Description</label>
