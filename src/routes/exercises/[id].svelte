@@ -582,7 +582,7 @@
 									{/if}
 								</div>
 							</div>
-							<div class="text-sm text-text-muted">{formatSets(entry.sets, exercise?.measure || 'weight')}</div>
+							<div class="text-sm text-text-muted">{formatSets(entry.sets, exercise)}</div>
 							{#if entry.notes}
 								<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
 							{/if}

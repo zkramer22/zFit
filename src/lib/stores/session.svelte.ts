@@ -1,4 +1,4 @@
-import type { SetData, Measure, TargetFields } from '$lib/pocketbase/types';
+import type { SetData, Measure, LoadFactor, TargetFields } from '$lib/pocketbase/types';
 import { emptySet } from '$lib/measure';
 import { authStore } from '$lib/stores/auth.svelte';
 
@@ -13,6 +13,7 @@ export interface EntryState {
 	painFlag: boolean;
 	notes: string;
 	measure: Measure;
+	loadFactor: LoadFactor | '';
 	target: TargetFields;
 	workoutNotes: string;
 	lastSessionSets: SetData[];

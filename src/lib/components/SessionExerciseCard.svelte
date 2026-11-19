@@ -29,16 +29,18 @@
 		onremoveSet, onsetDone, onsetRpe, ontogglePain, onsetnotes, onstarttimer, onremoveEntry
 	}: Props = $props();
 
+	const kind = $derived({ measure: entry.measure, load_factor: entry.loadFactor });
+
 	function handleSetDone(idx: number) {
 		onupdateSet(idx, 'completed', !entry.sets[idx].completed);
 		onsetDone(idx);
 	}
 
 	const targetSummary = $derived(() => {
-		const target = formatTarget(entry.target, entry.measure, authStore.weightUnit);
+		const target = formatTarget(entry.target, kind, authStore.weightUnit);
 		if (target) return target;
 		// Fallback: compact summary of actual logged sets
-		if (entry.sets.length > 0) return formatSetsSummary(entry.sets, entry.measure);
+		if (entry.sets.length > 0) return formatSetsSummary(entry.sets, kind);
 		return '';
 	});
 
@@ -46,7 +48,7 @@
 
 	const lastSessionPreview = $derived(() => {
 		if (!entry.lastSessionSets?.length) return '';
-		return formatSets(entry.lastSessionSets, entry.measure);
+		return formatSets(entry.lastSessionSets, kind);
 	});
 </script>
 

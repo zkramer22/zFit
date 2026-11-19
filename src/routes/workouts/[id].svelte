@@ -545,7 +545,7 @@
 									{#if item.expand?.exercise}
 										<ExerciseListItem
 											exercise={item.expand.exercise}
-											target={formatTarget(item, item.expand.exercise.measure || 'weight', authStore.weightUnit)}
+											target={formatTarget(item, item.expand.exercise, authStore.weightUnit)}
 											editing
 											ondelete={() => deleteExercise(section.key, item.id)}
 											oneditTarget={() => openTargetEditor(item)}
@@ -625,7 +625,7 @@
 						<div class="space-y-2">
 							{#each section.items as item (item.id)}
 								{#if item.expand?.exercise}
-									<ExerciseListItem exercise={item.expand.exercise} target={formatTarget(item, item.expand.exercise.measure || 'weight', authStore.weightUnit)} />
+									<ExerciseListItem exercise={item.expand.exercise} target={formatTarget(item, item.expand.exercise, authStore.weightUnit)} />
 								{/if}
 							{/each}
 						</div>

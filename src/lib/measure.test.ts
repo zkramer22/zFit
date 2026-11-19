@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptySet, setsFromTarget, targetFromSets, targetOf } from './measure.ts';
-import { formatTarget, formatSetData, formatSetsSummary } from './utils/format.ts';
+import { formatTarget, formatSetData, formatSets, formatSetsSummary } from './utils/format.ts';
 import type { TargetFields } from './pocketbase/types.ts';
 
 const target = (t: Partial<TargetFields>): TargetFields => ({
@@ -35,28 +35,40 @@ test('targetFromSets round-trips through setsFromTarget', () => {
 });
 
 test('formatTarget per measure', () => {
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '12', target_load: 125 }), 'weight', 'lb'), '3x12 @ 125 lb');
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '12' }), 'bodyweight', 'lb'), '3x12 BW');
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 25 }), 'bodyweight', 'kg'), '3x10 @ BW + 25 kg');
-	assert.equal(formatTarget(target({ target_sets: 3, target_seconds: 45 }), 'time', 'lb'), '3x 45 sec');
-	assert.equal(formatTarget(target({ target_sets: 2, target_reps: '2', target_seconds: 45 }), 'time', 'lb'), '2x2 @ 45 sec');
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '12', target_load: 125 }), { measure: 'weight' }, 'lb'), '3x12 @ 125 lb');
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '12' }), { measure: 'bodyweight' }, 'lb'), '3x12 BW');
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 25 }), { measure: 'bodyweight' }, 'kg'), '3x10 @ BW + 25 kg');
+	assert.equal(formatTarget(target({ target_sets: 3, target_seconds: 45 }), { measure: 'time' }, 'lb'), '3x 45 sec');
+	assert.equal(formatTarget(target({ target_sets: 2, target_reps: '2', target_seconds: 45 }), { measure: 'time' }, 'lb'), '2x2 @ 45 sec');
 	// PocketBase returns 0 for an empty number field
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 0 }), 'weight', 'lb'), '3x10');
-	assert.equal(formatTarget(target({ target_sets: 2, target_reps: '15', target_band: 'Red' }), 'band', 'lb'), '2x15 Red band');
-	assert.equal(formatTarget(target({}), 'weight', 'lb'), '');
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 0 }), { measure: 'weight' }, 'lb'), '3x10');
+	assert.equal(formatTarget(target({ target_sets: 2, target_reps: '15', target_band: 'Red' }), { measure: 'band' }, 'lb'), '2x15 Red band');
+	assert.equal(formatTarget(target({}), { measure: 'weight' }, 'lb'), '');
 });
 
 test('formatSetData and summary per measure', () => {
 	const s = { ...emptySet('weight', 'lb'), reps: 12, load: 125 };
-	assert.equal(formatSetData(s, 'weight'), '12 reps @ 125 lb');
-	assert.equal(formatSetData({ ...emptySet('time', 'lb'), seconds: 45 }, 'time'), '45 sec');
-	assert.equal(formatSetData({ ...emptySet('time', 'lb'), reps: 2, seconds: 45 }, 'time'), '2 reps @ 45 sec');
-	assert.equal(formatSetData({ ...emptySet('band', 'lb'), reps: 10, band: 'Red' }, 'band'), '10 reps @ Red band');
-	assert.equal(formatSetsSummary([s, s, s], 'weight'), '3x12 @ 125 lb');
-	assert.equal(formatSetsSummary([{ ...s, reps: 12 }, { ...s, reps: 10 }], 'weight'), '12/10 @ 125 lb');
+	assert.equal(formatSetData(s, { measure: 'weight' }), '12 reps @ 125 lb');
+	assert.equal(formatSetData({ ...emptySet('time', 'lb'), seconds: 45 }, { measure: 'time' }), '45 sec');
+	assert.equal(formatSetData({ ...emptySet('time', 'lb'), reps: 2, seconds: 45 }, { measure: 'time' }), '2 reps @ 45 sec');
+	assert.equal(formatSetData({ ...emptySet('band', 'lb'), reps: 10, band: 'Red' }, { measure: 'band' }), '10 reps @ Red band');
+	assert.equal(formatSetsSummary([s, s, s], { measure: 'weight' }), '3x12 @ 125 lb');
+	assert.equal(formatSetsSummary([{ ...s, reps: 12 }, { ...s, reps: 10 }], { measure: 'weight' }), '12/10 @ 125 lb');
 });
 
 test('targetOf reads stored 0 as no target', () => {
 	const t = targetOf({ target_sets: 3, target_load: 0, target_seconds: 0 } as never);
 	assert.deepEqual([t.target_load, t.target_seconds], [null, null]);
+});
+
+test('pair and each-side loads are tagged after the load', () => {
+	const pair = { measure: 'weight' as const, load_factor: 'pair' as const };
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 40 }), pair, 'lb'), '3x10 @ 40 lb [Pair]');
+	const s = { ...emptySet('weight', 'lb'), reps: 10, load: 40 };
+	assert.equal(formatSetsSummary([s, s, s], pair), '3x10 @ 40 lb [Pair]');
+	assert.equal(formatSets([s, s], { measure: 'weight', load_factor: 'each_side' }), '10 reps @ 40 lb / 10 reps @ 40 lb [Each side]');
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 40 }), { measure: 'weight', load_factor: 'single' }, 'lb'), '3x10 @ 40 lb');
+	// No load logged, nothing to tag
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '12' }), { measure: 'bodyweight', load_factor: 'pair' }, 'lb'), '3x12 BW');
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 40 }), undefined, 'lb'), '3x10 @ 40 lb');
 });
