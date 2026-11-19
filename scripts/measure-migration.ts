@@ -67,6 +67,13 @@ export const TOTAL_LOGGED: Record<string, 'pair' | 'each_side'> = {
 	'Dumbbell Row': 'each_side'
 };
 
+/** Session entries of those exercises that were logged per dumbbell or per side after all, so they keep their loads. */
+export const LOGGED_PER_HAND = new Set([
+	'onz7rfnxmhtndn3', // Dumbbell Row, 2026-03-08: 25 each side
+	'd2dzkh15blhyzbt', // Dumbbell Row, 2026-03-10: 25 each side
+	'1om0t85b0xjhw4i' // Dumbbell Bench Press, 2026-04-19: a pair of 40s
+]);
+
 export function halveLoads(sets: SetData[]): SetData[] {
 	return sets.map((s) => (s.load ? { ...s, load: s.load / 2 } : s));
 }

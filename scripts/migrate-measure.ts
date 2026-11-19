@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 import { pocketbaseUrl } from './target.ts';
-import { isLegacySet, migrateSet, inferMeasure, migrateTarget, halveLoads, TOTAL_LOGGED } from './measure-migration.ts';
+import { isLegacySet, migrateSet, inferMeasure, migrateTarget, halveLoads, TOTAL_LOGGED, LOGGED_PER_HAND } from './measure-migration.ts';
 
 /**
  * Moves exercises to a per-exercise measure (weight, bodyweight, time, band).
@@ -106,7 +106,9 @@ async function run() {
 
 	const totalLogged = exercises.filter((ex) => TOTAL_LOGGED[ex.name] && !ex.load_factor);
 	for (const ex of totalLogged) {
-		const sets = entries.filter((e) => e.exercise === ex.id).reduce((n, e) => n + (e.sets ?? []).length, 0);
+		const sets = entries
+			.filter((e) => e.exercise === ex.id && !LOGGED_PER_HAND.has(e.id))
+			.reduce((n, e) => n + (e.sets ?? []).length, 0);
 		console.log(`Load factor: ${ex.name} → ${TOTAL_LOGGED[ex.name]}, halving loads in ${sets} set(s) and its targets`);
 	}
 
@@ -151,7 +153,8 @@ async function run() {
 
 	// Runs after the set rewrite, so it reads the migrated sets. load_factor is set last and marks it done.
 	for (const ex of totalLogged) {
-		const exEntries = await pb.collection('session_entries').getFullList({ filter: `exercise = "${ex.id}"` });
+		const exEntries = (await pb.collection('session_entries').getFullList({ filter: `exercise = "${ex.id}"` }))
+			.filter((e) => !LOGGED_PER_HAND.has(e.id));
 		for (const e of exEntries) {
 			await pb.collection('session_entries').update(e.id, { sets: halveLoads(e.sets ?? []) });
 		}
