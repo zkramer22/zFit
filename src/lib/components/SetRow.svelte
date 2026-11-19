@@ -23,13 +23,12 @@
 	const isTimed = $derived(measure === 'time');
 	const amount = $derived(
 		measure === 'weight' ? set.load
-		: measure === 'bodyweight' ? set.load
 		: measure === 'time' ? set.seconds
 		: null
 	);
 	const amountLabel = $derived(
 		measure === 'weight' ? (set.load_unit ?? 'lb')
-		: measure === 'bodyweight' ? (set.load ? `+${set.load_unit ?? 'lb'}` : 'BW')
+		: measure === 'bodyweight' ? 'BW'
 		: measure === 'time' ? 'sec'
 		: (set.band ?? 'Band')
 	);
@@ -60,7 +59,7 @@
 			<span class="flex items-center gap-1.5 text-sm tabular-nums px-2 py-1 -mx-1">
 				<span class="font-medium {set.reps ? 'text-text' : 'text-text-muted'}">{set.reps ?? '–'}</span>
 				<span class="text-xs text-text-muted">&times;</span>
-				{#if measure === 'weight' || measure === 'time' || (measure === 'bodyweight' && set.load)}
+				{#if measure === 'weight' || measure === 'time'}
 					<span class="font-medium {amount ? 'text-text' : 'text-text-muted'}">{amount ?? '–'}</span>
 				{/if}
 				<span class="text-xs text-text-muted">{amountLabel}</span>
@@ -83,14 +82,16 @@
 					class="text-xs font-medium shrink-0 px-1.5 py-0.5 rounded border border-border text-text-muted hover:border-primary hover:text-primary transition-colors disabled:hover:border-border disabled:hover:text-text-muted"
 					aria-label="Change band"
 				>{amountLabel}</button>
+			{:else if measure === 'bodyweight'}
+				<span class="text-xs text-text-muted shrink-0">BW</span>
 			{:else}
 				<NumberStepper
 					class="flex-1 min-w-0"
 					value={amount}
 					onchange={setAmount}
-					step={measure === 'time' ? 5 : measure === 'weight' ? 5 : 2.5}
+					step={5}
 				/>
-				<span class="text-xs text-text-muted shrink-0">{measure === 'bodyweight' ? `+${set.load_unit ?? 'lb'}` : amountLabel}</span>
+				<span class="text-xs text-text-muted shrink-0">{amountLabel}</span>
 			{/if}
 
 			<!-- Close edit -->
@@ -104,7 +105,7 @@
 			<button type="button" onclick={() => editing = true} disabled={timerRunning} class="flex items-center gap-1.5 text-sm tabular-nums hover:bg-surface-hover rounded-lg px-2 py-1 -mx-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
 				<span class="font-medium {set.reps ? 'text-text' : 'text-text-muted'}">{set.reps ?? '–'}</span>
 				<span class="text-xs text-text-muted">&times;</span>
-				{#if measure === 'weight' || measure === 'time' || (measure === 'bodyweight' && set.load)}
+				{#if measure === 'weight' || measure === 'time'}
 					<span class="font-medium {amount ? 'text-text' : 'text-text-muted'}">{amount ?? '–'}</span>
 				{/if}
 				<span class="text-xs text-text-muted">{amountLabel}</span>

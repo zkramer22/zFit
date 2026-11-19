@@ -358,7 +358,7 @@
 			const fields: TargetFields = {
 				target_sets: editSets || 0,
 				target_reps: editReps ? String(editReps) : '',
-				target_load: editMeasure === 'weight' || editMeasure === 'bodyweight' ? editLoad : null,
+				target_load: editMeasure === 'weight' ? editLoad : null,
 				target_seconds: editMeasure === 'time' ? editSeconds : null,
 				target_band: editMeasure === 'band' ? editBand : '',
 				target_distance: editDistance,
@@ -563,10 +563,10 @@
 													<span class="block text-xs font-medium text-text-muted mb-1">Reps</span>
 													<NumberStepper value={editReps} onchange={(v) => editReps = v} min={1} />
 												</div>
-												{#if editMeasure === 'weight' || editMeasure === 'bodyweight'}
+												{#if editMeasure === 'weight'}
 													<div class="flex-1 min-w-0">
-														<span class="block text-xs font-medium text-text-muted mb-1">{editMeasure === 'bodyweight' ? `Added ${authStore.weightUnit}` : authStore.weightUnit}</span>
-														<NumberStepper value={editLoad} onchange={(v) => editLoad = v} step={editMeasure === 'weight' ? 5 : 2.5} />
+														<span class="block text-xs font-medium text-text-muted mb-1">{authStore.weightUnit}</span>
+														<NumberStepper value={editLoad} onchange={(v) => editLoad = v} step={5} />
 													</div>
 												{:else if editMeasure === 'time'}
 													<div class="flex-1 min-w-0">

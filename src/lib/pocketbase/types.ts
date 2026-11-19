@@ -85,7 +85,6 @@ export interface Session extends RecordModel {
 /** Each exercise's measure decides which fields a set uses. */
 export interface SetData {
 	reps: number | null;
-	/** Weight lifted, or weight added for bodyweight moves. */
 	load: number | null;
 	load_unit: WeightUnit | null;
 	seconds: number | null;

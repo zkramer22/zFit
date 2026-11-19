@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 import { pocketbaseUrl } from './target.ts';
-import { isLegacySet, migrateSet, inferMeasure, migrateTarget, halveLoads, LOAD_FACTOR_SET, LOGGED_PER_HAND } from './measure-migration.ts';
+import { isLegacySet, migrateSet, inferMeasure, migrateTarget, halveLoads, LOAD_FACTOR_SET, LOGGED_PER_HAND, MEASURE_SET } from './measure-migration.ts';
 
 /**
  * Moves exercises to a per-exercise measure (weight, bodyweight, time, band).
@@ -86,13 +86,18 @@ async function run() {
 	}
 
 	const plan = exercises
-		.filter((ex) => !ex.measure)
-		.map((ex) => ({ ex, measure: inferMeasure(usage.get(ex.id) ?? [], ex.category), logged: usage.get(ex.id)?.length ?? 0 }))
+		.filter((ex) => !ex.measure || (MEASURE_SET[ex.name] && ex.measure !== MEASURE_SET[ex.name]))
+		.map((ex) => ({
+			ex,
+			measure: MEASURE_SET[ex.name] ?? inferMeasure(usage.get(ex.id) ?? [], ex.category),
+			logged: usage.get(ex.id)?.length ?? 0
+		}))
 		.sort((a, b) => a.measure.localeCompare(b.measure) || a.ex.name.localeCompare(b.ex.name));
 
 	console.log(`\nMeasure per exercise (${plan.length} to set):\n`);
 	for (const p of plan) {
-		const basis = p.logged ? `${p.logged} logged set/target(s)` : `no history, from category "${p.ex.category}"`;
+		const basis = MEASURE_SET[p.ex.name] ? 'set by hand'
+			: p.logged ? `${p.logged} logged set/target(s)` : `no history, from category "${p.ex.category}"`;
 		console.log(`  ${p.measure.padEnd(10)} ${p.ex.name}  — ${basis}`);
 	}
 	const targetWeights = targets.filter((t) => t.target_weight).length;
