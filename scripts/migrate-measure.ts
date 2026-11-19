@@ -1,6 +1,6 @@
 import PocketBase from 'pocketbase';
 import { pocketbaseUrl } from './target.ts';
-import { isLegacySet, migrateSet, inferMeasure, migrateTarget } from './measure-migration.ts';
+import { isLegacySet, migrateSet, inferMeasure, migrateTarget, halveLoads, TOTAL_LOGGED } from './measure-migration.ts';
 
 /**
  * Moves exercises to a per-exercise measure (weight, bodyweight, time, band).
@@ -104,12 +104,19 @@ async function run() {
 		console.log(`User ${u.email}: weight unit → ${c.kg > c.lb ? 'kg' : 'lb'} (lb ${c.lb}, kg ${c.kg})`);
 	}
 
+	const totalLogged = exercises.filter((ex) => TOTAL_LOGGED[ex.name] && !ex.load_factor);
+	for (const ex of totalLogged) {
+		const sets = entries.filter((e) => e.exercise === ex.id).reduce((n, e) => n + (e.sets ?? []).length, 0);
+		console.log(`Load factor: ${ex.name} → ${TOTAL_LOGGED[ex.name]}, halving loads in ${sets} set(s) and its targets`);
+	}
+
 	if (!APPLY) {
 		console.log('\nDry run. Re-run with --apply to make these changes.');
 		return;
 	}
 
-	const backup = `pre_measure_${new Date().toISOString().slice(0, 10)}.zip`;
+	// Lowercase, as PocketBase requires, and timed so a re-run doesn't collide
+	const backup = `pre_measure_${new Date().toISOString().replace(/[:.]/g, '-').toLowerCase()}.zip`;
 	await pb.backups.create(backup);
 	console.log(`\nBackup created: ${backup}`);
 
@@ -141,6 +148,20 @@ async function run() {
 		targetCount++;
 	}
 	console.log(`Targets rewritten: ${targetCount}`);
+
+	// Runs after the set rewrite, so it reads the migrated sets. load_factor is set last and marks it done.
+	for (const ex of totalLogged) {
+		const exEntries = await pb.collection('session_entries').getFullList({ filter: `exercise = "${ex.id}"` });
+		for (const e of exEntries) {
+			await pb.collection('session_entries').update(e.id, { sets: halveLoads(e.sets ?? []) });
+		}
+		const exTargets = await pb.collection('workout_exercises').getFullList({ filter: `exercise = "${ex.id}"` });
+		for (const t of exTargets) {
+			if (t.target_load) await pb.collection('workout_exercises').update(t.id, { target_load: t.target_load / 2 });
+		}
+		await pb.collection('exercises').update(ex.id, { load_factor: TOTAL_LOGGED[ex.name] });
+		console.log(`${ex.name}: ${TOTAL_LOGGED[ex.name]}, ${exEntries.length} entries and ${exTargets.length} targets halved`);
+	}
 
 	console.log('Schema cleanup:');
 	for (const [name, fields] of Object.entries(REMOVED_FIELDS)) await removeFields(name, fields);

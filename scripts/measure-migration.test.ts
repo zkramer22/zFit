@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isLegacySet, migrateSet, inferMeasure, migrateTarget } from './measure-migration.ts';
+import { isLegacySet, migrateSet, inferMeasure, migrateTarget, halveLoads } from './measure-migration.ts';
 
 const legacy = { reps: 10, value: 50, unit: 'lb' as const, distance: null, distance_unit: null, notes: 'x', completed: true };
 
@@ -36,4 +36,10 @@ test('migrateTarget', () => {
 	assert.deepEqual(migrateTarget('30', 'sec'), { target_load: null, target_seconds: 30 });
 	assert.deepEqual(migrateTarget('', 'bw'), { target_load: null, target_seconds: null });
 	assert.deepEqual(migrateTarget('abc', 'lb'), { target_load: null, target_seconds: null });
+});
+
+test('halveLoads halves logged loads and leaves empty ones alone', () => {
+	const sets = [migrateSet(legacy), migrateSet({ ...legacy, value: 25 }), migrateSet({ ...legacy, unit: 'bw', value: null })];
+	assert.deepEqual(halveLoads(sets).map((s) => s.load), [25, 12.5, null]);
+	assert.equal(halveLoads(sets)[0].load_unit, 'lb');
 });

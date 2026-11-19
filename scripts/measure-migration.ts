@@ -57,3 +57,16 @@ export function migrateTarget(value: string, unit: string): { target_load: numbe
 		target_seconds: unit === 'sec' ? num : null
 	};
 }
+
+/**
+ * Exercises whose loads were logged as the total of both dumbbells or both sides. They move to a
+ * load factor, which doubles the per-hand or per-side number for volume, so their logged loads halve.
+ */
+export const TOTAL_LOGGED: Record<string, 'pair' | 'each_side'> = {
+	'Dumbbell Bench Press': 'pair',
+	'Dumbbell Row': 'each_side'
+};
+
+export function halveLoads(sets: SetData[]): SetData[] {
+	return sets.map((s) => (s.load ? { ...s, load: s.load / 2 } : s));
+}
