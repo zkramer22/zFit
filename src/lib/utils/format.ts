@@ -11,10 +11,11 @@ function loadFactorLabel(ex: ExerciseKind, hasAmount: boolean): string {
 	return getLabel(LOAD_FACTORS, factor);
 }
 
-/** Whether a set or target records the amount its measure counts: a load, seconds, or reps on a band. */
+/** Whether a set or target records the amount its measure counts: a load, seconds, or reps. */
 function hasAmount(measure: Measure, v: { load: number | null; seconds: number | null; reps: number | string | null; band: string | null }): boolean {
 	if (measure === 'time') return !!v.seconds;
 	if (measure === 'band') return !!(v.reps || v.band);
+	if (measure === 'bodyweight') return !!v.reps;
 	return !!v.load;
 }
 
@@ -27,7 +28,7 @@ export function setsLoadTag(sets: SetData[], ex: ExerciseKind): string {
 	return loadFactorLabel(ex, !!sets?.some((s) => hasAmount(ex?.measure || 'weight', s)));
 }
 
-/** Load text for one set or target, e.g. "125 lb", "BW + 25 lb", "45 sec", "Red band". */
+/** Load text for one set or target, e.g. "125 lb", "BW", "45 sec", "Red band". */
 function amountText(
 	measure: Measure,
 	v: { load: number | null; loadUnit: WeightUnit | null; seconds: number | null; band: string | null }
@@ -36,7 +37,7 @@ function amountText(
 		case 'weight':
 			return v.load != null ? `${v.load} ${v.loadUnit ?? 'lb'}` : '';
 		case 'bodyweight':
-			return v.load ? `BW + ${v.load} ${v.loadUnit ?? 'lb'}` : 'BW';
+			return 'BW';
 		case 'time':
 			return v.seconds != null ? `${v.seconds} sec` : '';
 		case 'band':
@@ -57,7 +58,7 @@ export function formatTarget(t: Partial<TargetFields>, ex: ExerciseKind, loadUni
 		band: t.target_band || null
 	});
 	if (amount) {
-		const joiner = measure === 'weight' || (measure === 'bodyweight' && t.target_load) || (measure === 'time' && t.target_reps) ? ' @ ' : ' ';
+		const joiner = measure === 'weight' || (measure === 'time' && t.target_reps) ? ' @ ' : ' ';
 		parts.push(parts.length ? joiner + amount : amount);
 	}
 	if (t.target_distance && t.target_distance_unit) {
@@ -100,7 +101,7 @@ export function formatSetsSummary(sets: SetData[], ex: ExerciseKind): string {
 	}
 
 	const amount = amountText(measure, { load: first.load, loadUnit: first.load_unit, seconds: first.seconds, band: first.band });
-	const joiner = measure === 'weight' || (measure === 'bodyweight' && first.load) || (measure === 'time' && first.reps) ? ' @ ' : ' ';
+	const joiner = measure === 'weight' || (measure === 'time' && first.reps) ? ' @ ' : ' ';
 	let result = amount ? `${repsPart}${joiner}${amount}` : repsPart;
 	if (first.distance != null && first.distance_unit) {
 		result += ` ${first.distance} ${first.distance_unit}`;

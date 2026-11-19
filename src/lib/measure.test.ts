@@ -9,9 +9,9 @@ const target = (t: Partial<TargetFields>): TargetFields => ({
 	target_band: '', target_distance: '', target_distance_unit: null, ...t
 });
 
-test('emptySet only carries a load unit for measures that lift weight', () => {
+test('emptySet only carries a load unit for weight', () => {
 	assert.equal(emptySet('weight', 'kg').load_unit, 'kg');
-	assert.equal(emptySet('bodyweight', 'lb').load_unit, 'lb');
+	assert.equal(emptySet('bodyweight', 'lb').load_unit, null);
 	assert.equal(emptySet('time', 'lb').load_unit, null);
 	assert.equal(emptySet('band', 'lb').load_unit, null);
 });
@@ -37,7 +37,8 @@ test('targetFromSets round-trips through setsFromTarget', () => {
 test('formatTarget per measure', () => {
 	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '12', target_load: 125 }), { measure: 'weight' }, 'lb'), '3x12 @ 125 lb');
 	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '12' }), { measure: 'bodyweight' }, 'lb'), '3x12 BW');
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 25 }), { measure: 'bodyweight' }, 'kg'), '3x10 @ BW + 25 kg');
+	// Bodyweight is reps only; a stray load isn't shown
+	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 25 }), { measure: 'bodyweight' }, 'kg'), '3x10 BW');
 	assert.equal(formatTarget(target({ target_sets: 3, target_seconds: 45 }), { measure: 'time' }, 'lb'), '3x 45 sec');
 	assert.equal(formatTarget(target({ target_sets: 2, target_reps: '2', target_seconds: 45 }), { measure: 'time' }, 'lb'), '2x2 @ 45 sec');
 	// PocketBase returns 0 for an empty number field
@@ -70,8 +71,9 @@ test('pair and each-side loads get a tag label, not text in the summary', () => 
 	assert.equal(formatSetsSummary([s, s, s], pair), '3x10 @ 40 lb');
 	assert.equal(setsLoadTag([s, s], { measure: 'weight', load_factor: 'each_side' }), 'Each side');
 	assert.equal(targetLoadTag(t, { measure: 'weight', load_factor: 'single' }), '');
-	// No load logged, nothing to tag
-	assert.equal(targetLoadTag(target({ target_sets: 3, target_reps: '12' }), { measure: 'bodyweight', load_factor: 'pair' }), '');
+	// Bodyweight counts reps, so reps alone get the tag
+	assert.equal(targetLoadTag(target({ target_sets: 3, target_reps: '12' }), { measure: 'bodyweight', load_factor: 'each_side' }), 'Each side');
+	assert.equal(targetLoadTag(target({ target_sets: 3 }), { measure: 'bodyweight', load_factor: 'each_side' }), '');
 	assert.equal(setsLoadTag([{ ...s, load: null }], pair), '');
 	assert.equal(targetLoadTag(t, undefined), '');
 });

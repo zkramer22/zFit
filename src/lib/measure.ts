@@ -4,7 +4,7 @@ export function emptySet(measure: Measure, loadUnit: WeightUnit): SetData {
 	return {
 		reps: null,
 		load: null,
-		load_unit: measure === 'weight' || measure === 'bodyweight' ? loadUnit : null,
+		load_unit: measure === 'weight' ? loadUnit : null,
 		seconds: null,
 		band: null,
 		distance: null,
@@ -21,7 +21,7 @@ export function setsFromTarget(target: TargetFields, measure: Measure, loadUnit:
 	return Array.from({ length: target.target_sets || 1 }, () => ({
 		...emptySet(measure, loadUnit),
 		reps,
-		load: measure === 'weight' || measure === 'bodyweight' ? target.target_load : null,
+		load: measure === 'weight' ? target.target_load : null,
 		seconds: measure === 'time' ? target.target_seconds : null,
 		band: measure === 'band' ? target.target_band || null : null,
 		distance,

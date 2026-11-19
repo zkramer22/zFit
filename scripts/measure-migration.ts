@@ -68,7 +68,33 @@ export const LOAD_FACTOR_SET: Record<string, { factor: 'pair' | 'each_side'; hal
 	'Dumbbell Row': { factor: 'each_side', halve: true },
 	'Banded Fire Hydrants': { factor: 'each_side', halve: false },
 	'Banded Side Step / Strafe': { factor: 'each_side', halve: false },
-	'Banded Monster Walks': { factor: 'each_side', halve: false }
+	'Banded Monster Walks': { factor: 'each_side', halve: false },
+	'Banded Clamshells': { factor: 'each_side', halve: false },
+	'Active Straight Leg Raise': { factor: 'each_side', halve: false },
+	'Single Leg Glute Bridge': { factor: 'each_side', halve: false },
+	'Single-Leg Calf Raise': { factor: 'each_side', halve: false },
+	'Leg Press (Single Leg)': { factor: 'each_side', halve: false },
+	'Single-Leg Balance Hold': { factor: 'each_side', halve: false },
+	'Side Plank': { factor: 'each_side', halve: false },
+	'Isometric hold - hip flexor leg lift': { factor: 'each_side', halve: false },
+	'Side-Lying Straight Leg Lift': { factor: 'each_side', halve: false },
+	'Cable Hip Abduction': { factor: 'each_side', halve: false },
+	'Cable Hip Extension': { factor: 'each_side', halve: false },
+	'Bird-Dog': { factor: 'each_side', halve: false },
+	'Pallof Press': { factor: 'each_side', halve: false },
+	'Reverse Lunge': { factor: 'each_side', halve: false },
+	'Reverse step up': { factor: 'each_side', halve: false },
+	'Standing Knee Drive': { factor: 'each_side', halve: false },
+	'Hip hikes': { factor: 'each_side', halve: false },
+	'Seated Internal Hip Rotation': { factor: 'each_side', halve: false },
+	'Kettlebell Romanian Deadlift': { factor: 'each_side', halve: false }
+};
+
+/** Measures set by hand where history alone picks wrong: these carry weight, so they aren't bodyweight. */
+export const MEASURE_SET: Record<string, Measure> = {
+	'Balance Board Squats': 'weight',
+	'Dead Bugs': 'weight',
+	'Bird-Dog': 'weight'
 };
 
 /** Session entries of those exercises that were logged per dumbbell or per side after all, so they keep their loads. */
