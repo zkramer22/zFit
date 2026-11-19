@@ -7,7 +7,8 @@
 	import * as Calendar from '$lib/components/ui/calendar/index.js';
 	import CalendarDayWithDots from '$lib/components/CalendarDayWithDots.svelte';
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
-	import { formatSets } from '$lib/utils/format';
+	import { formatSets, setsLoadTag } from '$lib/utils/format';
+	import LoadFactorTag from '$lib/components/LoadFactorTag.svelte';
 	import { targetFromSets } from '$lib/measure';
 	import { today, getLocalTimeZone } from '@internationalized/date';
 	import type { DateValue } from '@internationalized/date';
@@ -405,7 +406,7 @@
 									{/if}
 								</div>
 							</div>
-							<div class="text-xs text-text-muted">{formatSets(entry.sets, entry.expand?.exercise)}</div>
+							<div class="text-xs text-text-muted">{formatSets(entry.sets, entry.expand?.exercise)} <LoadFactorTag label={setsLoadTag(entry.sets, entry.expand?.exercise)} /></div>
 							{#if entry.notes}
 								<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
 							{/if}

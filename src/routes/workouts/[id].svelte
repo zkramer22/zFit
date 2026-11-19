@@ -13,7 +13,7 @@
 	import SlideReveal from '$lib/components/SlideReveal.svelte';
 	import Drawer from '$lib/components/Drawer.svelte';
 	import { WORKOUT_TAGS, DISTANCE_UNITS, getLabel } from '$lib/constants';
-	import { formatTarget } from '$lib/utils/format';
+	import { formatTarget, targetLoadTag } from '$lib/utils/format';
 	import { NumberStepper } from '$lib/components/ui/number-stepper';
 	import { SelectButton } from '$lib/components/ui/select-button';
 	import type { DistanceUnit, Measure, TargetFields } from '$lib/pocketbase/types';
@@ -546,6 +546,7 @@
 										<ExerciseListItem
 											exercise={item.expand.exercise}
 											target={formatTarget(item, item.expand.exercise, authStore.weightUnit)}
+											targetTag={targetLoadTag(item, item.expand.exercise)}
 											editing
 											ondelete={() => deleteExercise(section.key, item.id)}
 											oneditTarget={() => openTargetEditor(item)}
@@ -625,7 +626,8 @@
 						<div class="space-y-2">
 							{#each section.items as item (item.id)}
 								{#if item.expand?.exercise}
-									<ExerciseListItem exercise={item.expand.exercise} target={formatTarget(item, item.expand.exercise, authStore.weightUnit)} />
+									<ExerciseListItem exercise={item.expand.exercise} target={formatTarget(item, item.expand.exercise, authStore.weightUnit)}
+											targetTag={targetLoadTag(item, item.expand.exercise)} />
 								{/if}
 							{/each}
 						</div>

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptySet, setsFromTarget, targetFromSets, targetOf } from './measure.ts';
-import { formatTarget, formatSetData, formatSets, formatSetsSummary } from './utils/format.ts';
+import { formatTarget, formatSetData, formatSetsSummary, targetLoadTag, setsLoadTag } from './utils/format.ts';
 import type { TargetFields } from './pocketbase/types.ts';
 
 const target = (t: Partial<TargetFields>): TargetFields => ({
@@ -61,14 +61,17 @@ test('targetOf reads stored 0 as no target', () => {
 	assert.deepEqual([t.target_load, t.target_seconds], [null, null]);
 });
 
-test('pair and each-side loads are tagged after the load', () => {
+test('pair and each-side loads get a tag label, not text in the summary', () => {
 	const pair = { measure: 'weight' as const, load_factor: 'pair' as const };
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 40 }), pair, 'lb'), '3x10 @ 40 lb [Pair]');
+	const t = target({ target_sets: 3, target_reps: '10', target_load: 40 });
+	assert.equal(formatTarget(t, pair, 'lb'), '3x10 @ 40 lb');
+	assert.equal(targetLoadTag(t, pair), 'Pair');
 	const s = { ...emptySet('weight', 'lb'), reps: 10, load: 40 };
-	assert.equal(formatSetsSummary([s, s, s], pair), '3x10 @ 40 lb [Pair]');
-	assert.equal(formatSets([s, s], { measure: 'weight', load_factor: 'each_side' }), '10 reps @ 40 lb / 10 reps @ 40 lb [Each side]');
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 40 }), { measure: 'weight', load_factor: 'single' }, 'lb'), '3x10 @ 40 lb');
+	assert.equal(formatSetsSummary([s, s, s], pair), '3x10 @ 40 lb');
+	assert.equal(setsLoadTag([s, s], { measure: 'weight', load_factor: 'each_side' }), 'Each side');
+	assert.equal(targetLoadTag(t, { measure: 'weight', load_factor: 'single' }), '');
 	// No load logged, nothing to tag
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '12' }), { measure: 'bodyweight', load_factor: 'pair' }, 'lb'), '3x12 BW');
-	assert.equal(formatTarget(target({ target_sets: 3, target_reps: '10', target_load: 40 }), undefined, 'lb'), '3x10 @ 40 lb');
+	assert.equal(targetLoadTag(target({ target_sets: 3, target_reps: '12' }), { measure: 'bodyweight', load_factor: 'pair' }), '');
+	assert.equal(setsLoadTag([{ ...s, load: null }], pair), '');
+	assert.equal(targetLoadTag(t, undefined), '');
 });

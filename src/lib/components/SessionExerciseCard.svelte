@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { EntryState } from '$lib/stores/session.svelte';
 	import type { SetData } from '$lib/pocketbase/types';
-	import { formatTarget, formatSets, formatSetsSummary } from '$lib/utils/format';
+	import { formatTarget, formatSets, formatSetsSummary, targetLoadTag, setsLoadTag } from '$lib/utils/format';
+	import LoadFactorTag from './LoadFactorTag.svelte';
 	import { authStore } from '$lib/stores/auth.svelte';
 	import SlideReveal from './SlideReveal.svelte';
 	import SetRow from './SetRow.svelte';
@@ -38,10 +39,10 @@
 
 	const targetSummary = $derived(() => {
 		const target = formatTarget(entry.target, kind, authStore.weightUnit);
-		if (target) return target;
+		if (target) return { text: target, tag: targetLoadTag(entry.target, kind) };
 		// Fallback: compact summary of actual logged sets
-		if (entry.sets.length > 0) return formatSetsSummary(entry.sets, kind);
-		return '';
+		if (entry.sets.length > 0) return { text: formatSetsSummary(entry.sets, kind), tag: setsLoadTag(entry.sets, kind) };
+		return null;
 	});
 
 	const allCompleted = $derived(() => entry.sets.length > 0 && entry.sets.every(s => s.completed));
@@ -59,7 +60,7 @@
 			<div class="flex-1 min-w-0">
 				<div class="font-medium leading-tight">{entry.exerciseName}</div>
 				{#if targetSummary()}
-					<div class="text-xs text-text-muted mt-0.5">{targetSummary()}</div>
+					<div class="flex items-center gap-1 text-xs text-text-muted mt-0.5">{targetSummary()?.text} <LoadFactorTag label={targetSummary()?.tag ?? ''} /></div>
 				{/if}
 			</div>
 			<div class="flex items-center gap-2 shrink-0">
@@ -84,7 +85,7 @@
 			<!-- Last session reference -->
 			{#if lastSessionPreview()}
 				<div class="text-xs text-text-muted bg-surface-dim rounded-lg px-2 py-1.5">
-					<span class="font-medium">Last:</span> {lastSessionPreview()}
+					<span class="font-medium">Last:</span> {lastSessionPreview()} <LoadFactorTag label={setsLoadTag(entry.lastSessionSets, kind)} />
 				</div>
 			{/if}
 

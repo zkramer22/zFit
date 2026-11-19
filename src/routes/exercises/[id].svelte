@@ -7,7 +7,8 @@
 	import { CATEGORIES, CATEGORY_COLORS, MUSCLE_GROUPS, MEASURES, LOAD_FACTORS, getLabel } from '$lib/constants';
 	import { SelectButton } from '$lib/components/ui/select-button';
 	import { authStore } from '$lib/stores/auth.svelte';
-	import { formatSets } from '$lib/utils/format';
+	import { formatSets, setsLoadTag } from '$lib/utils/format';
+	import LoadFactorTag from '$lib/components/LoadFactorTag.svelte';
 	import { dialogStore } from '$lib/stores/dialog.svelte';
 	import { toastStore } from '$lib/stores/toast.svelte';
 
@@ -582,7 +583,7 @@
 									{/if}
 								</div>
 							</div>
-							<div class="text-sm text-text-muted">{formatSets(entry.sets, exercise)}</div>
+							<div class="text-sm text-text-muted">{formatSets(entry.sets, exercise)} <LoadFactorTag label={setsLoadTag(entry.sets, exercise)} /></div>
 							{#if entry.notes}
 								<div class="text-xs text-text-muted mt-1 italic">{entry.notes}</div>
 							{/if}
